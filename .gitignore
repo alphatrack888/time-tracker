@@ -1,0 +1,17 @@
+node_modules
+.env
+/logs
+/uploads
+*~
+*.ts~
+/Time-Tracker-API.postman_collection.json
+/REDIS_SOCKET_IMPROVEMENTS.md
+/NOTIFICATION_SYSTEM_FIX.md
+/check-redis.js
+/docs
+/test-notification-fix.js
+/test-socket-connection.html
+/test-bullmq.js
+/seed-time-sessions.js
+/seed-projects.js
+/DUMMY_DATA_README.md

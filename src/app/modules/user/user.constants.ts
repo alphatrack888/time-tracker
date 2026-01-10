@@ -1,0 +1,2 @@
+export const userFilterables = ['searchTerm', 'role', 'status', 'latitude', 'longitude', 'fromLat', 'toLat', 'fromLong', 'toLong', 'distance','state']
+export const userSearchableFields = ['name', 'lastName', 'email', 'phone', 'address', 'role']
