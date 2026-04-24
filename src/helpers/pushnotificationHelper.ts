@@ -2,12 +2,25 @@ import admin from "firebase-admin";
 import config from "../config";
 import { logger } from "../shared/logger";
 
-const serviceAccountJson = Buffer.from(config.firebase_service_account_base64!, "base64").toString("utf8");
-const serviceAccount = JSON.parse(serviceAccountJson);
+try {
+  if (config.firebase_service_account_base64) {
+    const serviceAccountJson = Buffer.from(
+      config.firebase_service_account_base64,
+      "base64"
+    ).toString("utf8");
+    const serviceAccount = JSON.parse(serviceAccountJson);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-});
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    });
+    logger.info("Firebase Admin initialized successfully");
+  } else {
+    logger.warn("Firebase Service Account Base64 is missing in configuration");
+  }
+} catch (error: any) {
+  logger.error("Failed to initialize Firebase Admin:", error.message);
+}
+
 
 type NotificationData = { [key: string]: string };
 

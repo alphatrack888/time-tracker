@@ -186,6 +186,20 @@ const updateSubscriptionPlan = catchAsync(async (req: Request, res: Response) =>
   })
 })
 
+// Admin: Delete subscription plan
+const deleteSubscriptionPlan = catchAsync(async (req: Request, res: Response) => {
+  const { planId } = req.params
+  
+  const plan = await subscriptionService.deleteSubscriptionPlan(planId)
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Subscription plan deleted successfully'
+  })
+})
+
+
 // Admin: Get all plans (including inactive)
 const getAllPlans = catchAsync(async (req: Request, res: Response) => {
   const { userType } = req.query
@@ -341,6 +355,7 @@ export const SubscriptionController = {
   // Admin endpoints (require admin role)
   createSubscriptionPlan,
   updateSubscriptionPlan,
+  deleteSubscriptionPlan,
   getAllPlans,
   getSubscriptionAnalytics,
   retryFailedPayment,

@@ -132,6 +132,14 @@ router.patch(
   SubscriptionController.updateSubscriptionPlan,
 )
 
+router.delete(
+  '/admin/plans/:planId',
+  auth(USER_ROLES.SUPER_ADMIN),
+  validateRequest(subscriptionValidation.planParams),
+  SubscriptionController.deleteSubscriptionPlan,
+)
+
+
 router.get(
   '/admin/plans',
   auth(USER_ROLES.SUPER_ADMIN),

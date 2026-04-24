@@ -340,6 +340,31 @@ class StripeService {
     }
   }
 
+  // Archive product
+  async archiveProduct(productId: string): Promise<Stripe.Product> {
+    try {
+      const product = await this.stripe.products.update(productId, { active: false })
+      logger.info(`Stripe product archived: ${productId}`)
+      return product
+    } catch (error) {
+      logger.error(`Error archiving Stripe product ${productId}:`, error)
+      throw error
+    }
+  }
+
+  // Delete product (only works if no prices or other dependencies)
+  async deleteProduct(productId: string): Promise<Stripe.DeletedProduct> {
+    try {
+      const deletedProduct = await this.stripe.products.del(productId)
+      logger.info(`Stripe product deleted: ${productId}`)
+      return deletedProduct
+    } catch (error) {
+      logger.error(`Error deleting Stripe product ${productId}:`, error)
+      throw error
+    }
+  }
+
+
   // Retry invoice payment
   async retryInvoicePayment(invoiceId: string): Promise<Stripe.Invoice> {
     try {

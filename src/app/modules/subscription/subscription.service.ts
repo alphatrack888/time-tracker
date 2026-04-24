@@ -527,6 +527,31 @@ class SubscriptionService {
     }
   }
 
+  // Admin: Delete subscription plan
+  async deleteSubscriptionPlan(planId: string): Promise<ISubscriptionPlan> {
+    try {
+      const plan = await SubscriptionPlan.findById(planId)
+      if (!plan) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subscription plan not found')
+      }
+
+      // Archive in Stripe instead of hard delete to avoid issues with active subscriptions
+      await stripeService.archivePrice(plan.stripePriceId)
+      await stripeService.archiveProduct(plan.stripeProductId)
+
+      // Delete from local DB
+      const deletedPlan = await SubscriptionPlan.findByIdAndDelete(planId)
+
+      logger.info(`Subscription plan deleted: ${planId}`)
+      return deletedPlan!
+    } catch (error) {
+      if (error instanceof ApiError) throw error
+      logger.error('Error deleting subscription plan:', error)
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete subscription plan')
+    }
+  }
+
+
   // Get subscription analytics
   async getSubscriptionAnalytics(filters?: {
     startDate?: Date
