@@ -73,7 +73,11 @@ const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise
       otp,
     })
 
-    emailHelper.sendEmail(otpTemplate)
+    console.log({otp})
+
+    setTimeout(() => {
+      emailHelper.sendEmail(otpTemplate)
+    },0)
 
     return authResponse(StatusCodes.PROXY_AUTHENTICATION_REQUIRED, `An OTP has been sent to your ${payload.email}. Please verify.`)
 
