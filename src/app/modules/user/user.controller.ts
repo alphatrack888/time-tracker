@@ -102,6 +102,21 @@ const deleteUser = catchAsync(async (req: Request, res: Response) => {
   })
 })
 
+const adminUpdateUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params
+  const { images, ...userData } = req.body
+  if (images && images.length > 0) {
+    userData.profile = images[0]
+  }
+  const result = await UserServices.adminUpdateUser(req.user!, id, userData)
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'User updated successfully',
+    data: result,
+  })
+})
+
 export const UserController = {
   getAllUsers,
   getProfile,
@@ -110,5 +125,6 @@ export const UserController = {
   getWorkingHoursSummary,
   getBreakHoursChart,
   getTodaysBreakPeriods,
-  deleteUser
+  deleteUser,
+  adminUpdateUser,
 }

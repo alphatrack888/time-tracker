@@ -84,6 +84,14 @@ router.get(
   UserController.getSingleUser,
 )
 
+router.patch(
+  '/:id',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.COMPANY),
+  fileAndBodyProcessorUsingDiskStorage(),
+  validateRequest(UserValidations.adminUpdateUserZodSchema),
+  UserController.adminUpdateUser,
+)
+
 router.delete(
   '/:id',
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.COMPANY),

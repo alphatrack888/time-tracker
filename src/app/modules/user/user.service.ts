@@ -134,6 +134,33 @@ const getSingleUser = async (id: string) => {
   return result
 }
 
+const adminUpdateUser = async (user: JwtPayload, id: string, payload: Partial<IUser>) => {
+  const targetUser = await User.findOne({ _id: id, status: { $ne: USER_STATUS.DELETED } })
+  if (!targetUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
+  }
+
+  // Super admin can edit anyone
+  if (user.role === USER_ROLES.SUPER_ADMIN) {
+    const updated = await User.findByIdAndUpdate(id, { $set: payload }, { new: true })
+    return updated
+  }
+
+  // Company can only edit their own employees
+  if (user.role === USER_ROLES.COMPANY) {
+    if (targetUser.role !== USER_ROLES.EMPLOYEES) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'Company can only edit employee accounts')
+    }
+    if (targetUser.company?.toString() !== user.authId) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You can only edit employees belonging to your company')
+    }
+    const updated = await User.findByIdAndUpdate(id, { $set: payload }, { new: true })
+    return updated
+  }
+
+  throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to edit users')
+}
+
 // API 1: Get working hours summary (today, this week, this month)
 const getWorkingHoursSummary = async (user: JwtPayload, date?: string) => {
   console.log(date)
@@ -315,6 +342,7 @@ export const UserServices = {
   getWorkingHoursSummary,
   getBreakHoursChart,
   getTodaysBreakPeriods,
-  deleteUser
+  deleteUser,
+  adminUpdateUser,
 }
 

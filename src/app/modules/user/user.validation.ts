@@ -35,6 +35,17 @@ const updateUserZodSchema = z.object({
   }),
 })
 
+const adminUpdateUserZodSchema = z.object({
+  body: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    designation: z.string().optional(),
+    manualBreak: z.boolean().optional(),
+    images: z.array(z.string()).optional(),
+  }),
+})
+
 const createOrUpdateLeaveBalanceZodSchema = z.object({
   body: z.object({
     balances: z.array(z.object({
@@ -44,4 +55,4 @@ const createOrUpdateLeaveBalanceZodSchema = z.object({
   }),
 })
 
-export const UserValidations = { createUserZodSchema, updateUserZodSchema, createOrUpdateLeaveBalanceZodSchema }
+export const UserValidations = { createUserZodSchema, updateUserZodSchema, adminUpdateUserZodSchema, createOrUpdateLeaveBalanceZodSchema }
