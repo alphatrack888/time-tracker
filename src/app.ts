@@ -17,7 +17,7 @@ app.use(Morgan.errorHandler)
 //body parser
 app.use(
   cors({
-    origin: ['http://10.10.7.101:9000', 'http://10.10.7.101:9501', 'http://localhost:9000','http://localhost:9501', 'https://company.alphatrack.app', 'https://admin.alphatrack.app',"http://localhost:5173", "http://localhost:5174","http://10.10.7.79:9501"],
+    origin: ['http://10.10.7.101:9000', 'http://10.10.7.101:9501', 'http://localhost:9000','http://localhost:9501', 'https://company.alphatrack.app', 'https://admin.alphatrack.app',"http://localhost:5173", "http://localhost:5174","http://10.10.7.79:9501","http://10.10.7.79:9502"],
     credentials: true,
   }),
 )
