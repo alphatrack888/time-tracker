@@ -325,8 +325,9 @@ const deleteUser = async (user: JwtPayload, id: string) => {
     if (targetUser.company?.toString() !== user.authId) {
       throw new ApiError(StatusCodes.FORBIDDEN, 'You can only delete employees belonging to your company')
     }
-    targetUser.status = USER_STATUS.DELETED
-    await targetUser.save()
+
+    await User.findByIdAndUpdate(targetUser,{status:USER_STATUS.DELETED},{new:true})
+
     return 'Employee deleted successfully'
   }
 
