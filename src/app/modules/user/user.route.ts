@@ -94,7 +94,7 @@ router.patch(
 
 router.delete(
   '/:id',
-  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.COMPANY),
+  // auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.COMPANY),
   UserController.deleteUser,
 )
 

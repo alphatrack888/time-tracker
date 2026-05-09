@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
-
 import { StatusCodes } from 'http-status-codes'
 import catchAsync from '../../../shared/catchAsync'
 import sendResponse from '../../../shared/sendResponse'
-
 import { UserServices } from './user.service'
 import pick from '../../../shared/pick'
 import { paginationFields } from '../../../interfaces/pagination'
@@ -94,6 +92,7 @@ const getTodaysBreakPeriods = catchAsync(async (req: Request, res: Response) => 
 
 const deleteUser = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params
+  console.log('req.user!', {id})
   const result = await UserServices.deleteUser(req.user!, id)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
