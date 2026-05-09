@@ -11,27 +11,26 @@ const baseLayout = (content: string, title: string) => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 0; color: #1a1a1a; }
-    .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-    .header { margin-bottom: 40px; }
-    .content { line-height: 1.6; font-size: 16px; }
-    .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #eeeeee; color: #888888; font-size: 13px; text-align: left; }
-    .button { display: inline-block; padding: 12px 24px; background-color: ${brandColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 20px 0; }
-    .otp-code { font-size: 32px; font-weight: 700; color: ${brandColor}; letter-spacing: 4px; margin: 20px 0; padding: 12px 0; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; display: block; text-align: left; }
-    .details { background-color: #f9f9f9; padding: 20px; border-radius: 4px; margin: 20px 0; }
-    h1 { font-size: 24px; font-weight: 600; margin-bottom: 24px; color: #000000; }
-    h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
-    p { margin-bottom: 16px; }
-    .highlight { color: ${brandColor}; font-weight: 500; }
-    ul { padding-left: 20px; margin: 0; }
-    li { margin-bottom: 8px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; margin: 0; padding: 0; color: #1a1a1a; }
+    .container { max-width: 600px; margin: 40px auto; padding: 40px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid ${brandColor}; }
+    .content { line-height: 1.6; font-size: 16px; color: #333333; }
+    .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid #edf2f7; color: #64748b; font-size: 13px; text-align: center; }
+    .button { display: block; width: fit-content; padding: 14px 28px; background-color: ${brandColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 24px auto; text-align: center; }
+    .otp-code { font-size: 36px; font-weight: 700; color: ${brandColor}; letter-spacing: 6px; margin: 24px 0; padding: 16px 0; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; display: block; text-align: center; background-color: #f8fafc; }
+    .details { background-color: #f8fafc; padding: 24px; border-radius: 6px; margin: 24px 0; border: 1px solid #edf2f7; }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 24px; color: #0f172a; text-align: center; }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1e293b; }
+    p { margin-bottom: 18px; }
+    .highlight { color: ${brandColor}; font-weight: 600; }
+    ul { padding-left: 20px; margin: 0 0 18px 0; }
+    li { margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <img src="${logoUrl}" alt="AlphaTrack" style="height: 32px; width: auto;">
-    </div>
+        <div class="header" style="text-align: center; margin-bottom: 32px;">
+          <img src="${logoUrl}" alt="AlphaTrack" style="height: 64px; width: auto; display: block; margin: 0 auto;">
+        </div>
     <div class="content">
       ${content}
     </div>
