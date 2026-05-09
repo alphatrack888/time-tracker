@@ -95,7 +95,9 @@ export const generalGetAllUsers = async(user:JwtPayload, filter:IUserFilter, pag
   } 
     
 
-  
+  // Exclude deleted users
+  andCondition.push({ status: { $ne: USER_STATUS.DELETED } })
+
   const whereCondition = andCondition.length ? { $and: andCondition } : {}
   console.log(whereCondition)
   const [result, total] = await Promise.all([
@@ -271,6 +273,39 @@ const getTodaysBreakPeriods = async (user: JwtPayload, date?: string) => {
   }
 }
 
+const deleteUser = async (user: JwtPayload, id: string) => {
+  const targetUser = await User.findById(id)
+  if (!targetUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found')
+  }
+
+  if (targetUser.status === USER_STATUS.DELETED) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User is already deleted')
+  }
+
+  // Admin can delete anyone
+  if (user.role === USER_ROLES.SUPER_ADMIN) {
+    targetUser.status = USER_STATUS.DELETED
+    await targetUser.save()
+    return 'User deleted successfully'
+  }
+
+  // Company can only delete employees belonging to them
+  if (user.role === USER_ROLES.COMPANY) {
+    if (targetUser.role !== USER_ROLES.EMPLOYEES) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'Company can only delete employee accounts')
+    }
+    if (targetUser.company?.toString() !== user.authId) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You can only delete employees belonging to your company')
+    }
+    targetUser.status = USER_STATUS.DELETED
+    await targetUser.save()
+    return 'Employee deleted successfully'
+  }
+
+  throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to delete users')
+}
+
 export const UserServices = { 
   updateProfile, 
   createAdmin, 
@@ -279,6 +314,7 @@ export const UserServices = {
   getSingleUser,
   getWorkingHoursSummary,
   getBreakHoursChart,
-  getTodaysBreakPeriods
+  getTodaysBreakPeriods,
+  deleteUser
 }
 

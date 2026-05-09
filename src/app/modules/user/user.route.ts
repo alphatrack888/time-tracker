@@ -84,4 +84,10 @@ router.get(
   UserController.getSingleUser,
 )
 
+router.delete(
+  '/:id',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.COMPANY),
+  UserController.deleteUser,
+)
+
 export const UserRoutes = router

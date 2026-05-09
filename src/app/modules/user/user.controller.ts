@@ -92,6 +92,16 @@ const getTodaysBreakPeriods = catchAsync(async (req: Request, res: Response) => 
   })
 })
 
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params
+  const result = await UserServices.deleteUser(req.user!, id)
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: result,
+  })
+})
+
 export const UserController = {
   getAllUsers,
   getProfile,
@@ -100,4 +110,5 @@ export const UserController = {
   getWorkingHoursSummary,
   getBreakHoursChart,
   getTodaysBreakPeriods,
+  deleteUser
 }
