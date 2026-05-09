@@ -312,8 +312,7 @@ const deleteUser = async (user: JwtPayload, id: string) => {
 
   // Admin can delete anyone
   if (user.role === USER_ROLES.SUPER_ADMIN) {
-    targetUser.status = USER_STATUS.DELETED
-    await targetUser.save()
+    await User.findByIdAndUpdate(targetUser,{status:USER_STATUS.DELETED},{new:true})
     return 'User deleted successfully'
   }
 
