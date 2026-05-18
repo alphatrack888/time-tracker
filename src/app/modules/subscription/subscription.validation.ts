@@ -56,8 +56,6 @@ export const updateSubscriptionSchema = z.object({
 export const createCheckoutSessionSchema = z.object({
   body: z.object({
     planId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid plan ID format'),
-    successUrl: z.string().url('Invalid success URL'),
-    cancelUrl: z.string().url('Invalid cancel URL'),
   }),
 })
 

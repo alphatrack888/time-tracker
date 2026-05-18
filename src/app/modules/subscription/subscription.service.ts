@@ -174,7 +174,7 @@ class SubscriptionService {
         !!stripeSubscription.trial_start
       )
 
-    
+
 
       logger.info(`Subscription created for user ${userId}: ${subscription._id}`)
 
@@ -239,7 +239,7 @@ class SubscriptionService {
 
         updateParams.planId = new Types.ObjectId(request.planId)
         updateParams.stripePriceId = newPlan.stripePriceId
-        
+
         // Get updated subscription from Stripe to get the new price
         const updatedStripeSubscription = await stripeService.getSubscription(subscription.stripeSubscriptionId)
         updateParams.price = updatedStripeSubscription.items.data[0].price.unit_amount ? updatedStripeSubscription.items.data[0].price.unit_amount / 100 : 0
@@ -387,8 +387,8 @@ class SubscriptionService {
   async createCheckoutSession(
     userId: string,
     planId: string,
-    successUrl: string,
-    cancelUrl: string,
+    successUrl?: string,
+    cancelUrl?: string,
   ): Promise<{ sessionId: string; url: string }> {
     try {
       const user = await User.findById(userId).select('+email')
@@ -398,6 +398,10 @@ class SubscriptionService {
 
       const plan = await this.getPlanById(planId)
       const trialInfo = await this.checkTrialEligibility(userId)
+
+      const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/['"]/g, '').replace(/\/$/, '').trim()
+      const finalSuccessUrl = successUrl || `${baseUrl}/subscription-success`
+      const finalCancelUrl = cancelUrl || `${baseUrl}/subscription`
 
       // Create or get Stripe customer
       let stripeCustomerId: string
@@ -417,8 +421,8 @@ class SubscriptionService {
       const session = await stripeService.createCheckoutSession({
         customerId: stripeCustomerId,
         priceId: plan.stripePriceId,
-        successUrl,
-        cancelUrl,
+        successUrl: finalSuccessUrl,
+        cancelUrl: finalCancelUrl,
         // trialPeriodDays: trialInfo.isEligible ? plan.trialPeriodDays : undefined,
         metadata: {
           userId: userId.toString(),
@@ -663,7 +667,7 @@ class SubscriptionService {
       const stripeSubscription = await stripeService.getSubscriptionExpanded(subscription.stripeSubscriptionId)
 
       if (stripeSubscription.latest_invoice && typeof stripeSubscription.latest_invoice === 'object') {
-       const invoice = stripeSubscription.latest_invoice
+        const invoice = stripeSubscription.latest_invoice
 
         // Retry payment on the invoice
         await stripeService.retryInvoicePayment(invoice.id as string)

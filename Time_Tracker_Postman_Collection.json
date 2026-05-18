@@ -1,0 +1,2776 @@
+{
+  "info": {
+    "name": "Time Tracker API",
+    "description": "Postman collection generated from API Documentation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication Endpoints",
+      "item": [
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"email\": \"user@example.com\",\n\"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/admin-login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "admin-login"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"email\": \"admin@example.com\",\n\"password\": \"adminpassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "signup"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "formdata",
+              "raw": "",
+              "formdata": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Account",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/verify-account",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-account"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"email\": \"user@example.com\",\n\"oneTimeCode\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forget Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/forget-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forget-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"newPassword\": \"newpassword123\",\n\"confirmPassword\": \"newpassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/resend-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "resend-otp"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"email\": \"wijiciv379@iotrama.com\",\n\"authType\": \"createAccount\"\n// \"authType\": \"resetPassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "change-password"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"currentPassword\": \"oldpassword\",\n\"newPassword\": \"newpassword123\",\n\"confirmPassword\": \"newpassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/delete-account",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "delete-account"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"password\": \"userpassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"refreshToken\": \"refresh-token-here\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user?page=&limit=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "formdata",
+              "raw": "",
+              "formdata": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Working Hours Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/working-hours-summary?date=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "working-hours-summary"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Break Hours Chart",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/break-hours-chart",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "break-hours-chart"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Today's Break Periods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/todays-break-periods?date=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "todays-break-periods"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Time Tracking",
+      "item": [
+        {
+          "name": "Start Timer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "start"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"project\": \"68acbccced43325323ea74e8\",\n\"location\": {\n\"lat\": 40.7128,\n\"lng\": -74.0060\n}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pause Timer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/pause/:sessionId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "pause",
+                ":sessionId"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"location\": {\n\"lat\": 40.7128,\n\"lng\": -74.0060\n}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resume Timer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/resume/:sessionId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "resume",
+                ":sessionId"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"location\": {\n\"lat\": 40.7128,\n\"lng\": -74.0060\n}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stop Timer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/stop/:sessionId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "stop",
+                ":sessionId"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"location\": {\n\"lat\": 40.7128,\n\"lng\": -74.0060\n}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Daily Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/summary?date=&project=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": ""
+                },
+                {
+                  "key": "project",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Periodic Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/location",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "location"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"sessionId\": \"session-id\",\n\"location\": {\n\"lat\": 40.7128,\n\"lng\": -74.0060\n}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session Locations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/session/:sessionId/locations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "session",
+                ":sessionId",
+                "locations"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Locations by Date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/locations?date=&project=&page=&limit=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "locations"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": ""
+                },
+                {
+                  "key": "project",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Monthly PDF Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/reports/monthly?month=&employee=&project=&template=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "reports",
+                "monthly"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": ""
+                },
+                {
+                  "key": "employee",
+                  "value": ""
+                },
+                {
+                  "key": "project",
+                  "value": ""
+                },
+                {
+                  "key": "template",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Project Management",
+      "item": [
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "formdata",
+              "raw": "",
+              "formdata": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project?page=&limit=&searchTerm=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "searchTerm",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Project",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project",
+                ":id"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "formdata",
+              "raw": "",
+              "formdata": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leave Management",
+      "item": [
+        {
+          "name": "Create Leave Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavemanagement",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavemanagement"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"type\": \"vacation\",\n\"startDate\": \"2024-02-01\",\n\"endDate\": \"2024-02-05\",\n\"reason\": \"Family vacation\",\n\"description\": \"Annual family trip\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Leave Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavemanagement?page=&limit=&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavemanagement"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Leave Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavemanagement/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavemanagement",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Leave Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavemanagement/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavemanagement",
+                ":id"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"status\": \"approved\",\n\"adminComment\": \"Approved for vacation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Leave Request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavemanagement/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavemanagement",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leave Balance",
+      "item": [
+        {
+          "name": "Create Leave Balance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavebalance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavebalance"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"user\": \"user-id\",\n\"balances\": [\n{\n\"type\": \"vacation\",\n\"balance\": 20\n},\n{\n\"type\": \"sick\",\n\"balance\": 10\n}\n]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Leave Balances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavebalance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavebalance"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Leave Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavebalance/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavebalance",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Leave Balance",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavebalance/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavebalance",
+                ":id"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"balances\": [\n{\n\"type\": \"vacation\",\n\"balance\": 18\n}\n]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Leave Balance",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/leavebalance/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "leavebalance",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get System Admin General Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/general-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "general-stats"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Monthly Revenue from Stripe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/monthly-revenue-stripe",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "monthly-revenue-stripe"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Total Company Monthly Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/total-company-monthly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "total-company-monthly"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Total Employees Data Yearly",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/total-employees-yearly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "total-employees-yearly"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Total Project Yearly Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/total-project-yearly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "total-project-yearly"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company General Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/company-general-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "company-general-stats"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Time Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/time-analytics/:userId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "time-analytics",
+                ":userId"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Employee Locations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/employee-locations/:userId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "employee-locations",
+                ":userId"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Get Available Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/plans?isActive=&planType=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "isActive",
+                  "value": ""
+                },
+                {
+                  "key": "planType",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/plans/:planId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "plans",
+                ":planId"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Trial Eligibility",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/trial-eligibility/:userId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "trial-eligibility",
+                ":userId"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "create"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"planId\": \"plan-id\",\n\"paymentMethodId\": \"payment-method-id\",\n\"billingCycle\": \"monthly\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/current",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "current"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "cancel"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Usage Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/usage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "usage"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Usage Warnings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/subscriptions/usage/warnings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "subscriptions",
+                "usage",
+                "warnings"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Public Content",
+      "item": [
+        {
+          "name": "Create Public Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"content\": \"Content text\",\n\"type\": \"privacy-policy\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Public Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/:type",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                ":type"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Public Content",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Contact",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/contact",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "contact"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"name\": \"John Doe\",\n\"email\": \"john@example.com\",\n\"phone\": \"+1234567890\",\n\"country\": \"USA\",\n\"message\": \"Contact message\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create FAQ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/faq",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "faq"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"question\": \"How do I reset my password?\",\n\"answer\": \"Click on forgot password link...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update FAQ",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/faq/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "faq",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single FAQ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/faq/single/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "faq",
+                "single",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All FAQs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/faq/all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "faq",
+                "all"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete FAQ",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/faq/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "faq",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications?page=&limit=&read=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "read",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/:id/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                ":id",
+                "read"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/mark-all-read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "mark-all-read"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gallery",
+      "item": [
+        {
+          "name": "Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gallery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gallery"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "formdata",
+              "raw": "",
+              "formdata": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Images",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gallery?page=&limit=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gallery"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Image",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gallery/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gallery",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Image",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gallery/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gallery",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gallery/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gallery",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notes",
+      "item": [
+        {
+          "name": "Create Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/note",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "note"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"title\": \"Note title\",\n\"content\": \"Note content\",\n\"category\": \"work\",\n\"tags\": [\"important\", \"project\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/note?page=&limit=&category=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "note"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "category",
+                  "value": ""
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Note",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/note/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "note",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/note/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "note",
+                ":id"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"title\": \"Updated title\",\n\"content\": \"Updated content\",\n\"tags\": [\"updated\", \"important\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Note",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/note/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "note",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "Create Payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payrole",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payrole"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"employee\": \"employee-id\",\n\"period\": \"2024-01\",\n\"basicSalary\": 5000,\n\"overtime\": 500,\n\"deductions\": 200,\n\"bonus\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payrolls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payrole?page=&limit=&period=&employee=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payrole"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "period",
+                  "value": ""
+                },
+                {
+                  "key": "employee",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Payroll",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payrole/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payrole",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payroll",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payrole/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payrole",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payroll",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payrole/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payrole",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Packages",
+      "item": [
+        {
+          "name": "Create Package",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/package",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "package"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"title\": \"Premium Package\",\n\"price\": 99.99,\n\"features\": [\n\"Unlimited projects\",\n\"Advanced analytics\",\n\"Priority support\"\n],\n\"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/package?page=&limit=&isActive=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "package"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "key": "isActive",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Package",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/package/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "package",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Package",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/package/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "package",
+                ":id"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"title\": \"Updated Premium Package\",\n\"price\": 109.99,\n\"features\": [\n\"Unlimited projects\",\n\"Advanced analytics\",\n\"Priority support\",\n\"Custom integrations\"\n]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Package",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/package/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "package",
+                ":id"
+              ],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "### Supported File Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "### Upload Response Format",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "WebSocket Events",
+      "item": [
+        {
+          "name": "### Connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [],
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "### Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [],
+              "query": []
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Environment Variables",
+      "item": []
+    },
+    {
+      "name": "Testing",
+      "item": []
+    },
+    {
+      "name": "Support",
+      "item": []
+    }
+  ]
+}

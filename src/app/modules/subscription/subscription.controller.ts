@@ -10,7 +10,7 @@ import { JwtPayload } from 'jsonwebtoken'
 // Get available subscription plans
 const getAvailablePlans = catchAsync(async (req: Request, res: Response) => {
   const { userType } = req.query
-  
+
   const plans = await subscriptionService.getAvailablePlans(userType as string)
 
   sendResponse(res, {
@@ -24,7 +24,7 @@ const getAvailablePlans = catchAsync(async (req: Request, res: Response) => {
 // Get specific plan by ID
 const getPlanById = catchAsync(async (req: Request, res: Response) => {
   const { planId } = req.params
-  
+
   const plan = await subscriptionService.getPlanById(planId)
 
   sendResponse(res, {
@@ -39,7 +39,7 @@ const getPlanById = catchAsync(async (req: Request, res: Response) => {
 const checkTrialEligibility = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = req.params.userId || user.authId?.toString()
-  
+
   const trialInfo = await subscriptionService.checkTrialEligibility(userId!)
 
   sendResponse(res, {
@@ -54,7 +54,7 @@ const checkTrialEligibility = catchAsync(async (req: Request, res: Response) => 
 const createSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  
+
   const result = await subscriptionService.createSubscription(userId, req.body)
 
   sendResponse(res, {
@@ -69,7 +69,7 @@ const createSubscription = catchAsync(async (req: Request, res: Response) => {
 const getUserSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  
+
   const subscription = await subscriptionService.getUserSubscription(userId)
 
   sendResponse(res, {
@@ -86,7 +86,7 @@ const updateSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
   const { subscriptionId } = req.params
-  
+
   const subscription = await subscriptionService.updateSubscription(userId, subscriptionId, req.body)
 
   sendResponse(res, {
@@ -103,7 +103,7 @@ const cancelSubscription = catchAsync(async (req: Request, res: Response) => {
   const userId = user.authId!.toString()
   const { subscriptionId } = req.params
   const { cancelAtPeriodEnd = true } = req.body
-  
+
   const subscription = await subscriptionService.cancelSubscription(userId, subscriptionId, cancelAtPeriodEnd)
 
   sendResponse(res, {
@@ -118,7 +118,7 @@ const cancelSubscription = catchAsync(async (req: Request, res: Response) => {
 const getSubscriptionStatus = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  
+
   const status = await subscriptionService.getSubscriptionStatus(userId)
 
   sendResponse(res, {
@@ -133,9 +133,9 @@ const getSubscriptionStatus = catchAsync(async (req: Request, res: Response) => 
 const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  const { planId, successUrl, cancelUrl } = req.body
-  
-  const session = await subscriptionService.createCheckoutSession(userId, planId, successUrl, cancelUrl)
+  const { planId } = req.body
+
+  const session = await subscriptionService.createCheckoutSession(userId, planId)
 
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
@@ -175,7 +175,7 @@ const createSubscriptionPlan = catchAsync(async (req: Request, res: Response) =>
 // Admin: Update subscription plan
 const updateSubscriptionPlan = catchAsync(async (req: Request, res: Response) => {
   const { planId } = req.params
-  
+
   const plan = await subscriptionService.updateSubscriptionPlan(planId, req.body)
 
   sendResponse(res, {
@@ -189,7 +189,7 @@ const updateSubscriptionPlan = catchAsync(async (req: Request, res: Response) =>
 // Admin: Delete subscription plan
 const deleteSubscriptionPlan = catchAsync(async (req: Request, res: Response) => {
   const { planId } = req.params
-  
+
   const plan = await subscriptionService.deleteSubscriptionPlan(planId)
 
   sendResponse(res, {
@@ -203,7 +203,7 @@ const deleteSubscriptionPlan = catchAsync(async (req: Request, res: Response) =>
 // Admin: Get all plans (including inactive)
 const getAllPlans = catchAsync(async (req: Request, res: Response) => {
   const { userType } = req.query
-  
+
   // For admin, get all plans including inactive ones
   const plans = await subscriptionService.getAvailablePlans(userType as string)
 
@@ -218,13 +218,13 @@ const getAllPlans = catchAsync(async (req: Request, res: Response) => {
 // Admin: Get subscription analytics
 const getSubscriptionAnalytics = catchAsync(async (req: Request, res: Response) => {
   const { startDate, endDate, planId, status } = req.query
-  
+
   const filters: any = {}
   if (startDate) filters.startDate = new Date(startDate as string)
   if (endDate) filters.endDate = new Date(endDate as string)
   if (planId) filters.planId = planId as string
   if (status) filters.status = status as string
-  
+
   const analytics = await subscriptionService.getSubscriptionAnalytics(filters)
 
   sendResponse(res, {
@@ -240,10 +240,10 @@ const reactivateSubscription = catchAsync(async (req: Request, res: Response) =>
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
   const { subscriptionId } = req.params
-  
+
   // This would involve creating a new subscription or updating the canceled one
   // Implementation depends on your business logic
-  
+
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -255,7 +255,7 @@ const reactivateSubscription = catchAsync(async (req: Request, res: Response) =>
 // Retry failed payment
 const retryFailedPayment = catchAsync(async (req: Request, res: Response) => {
   const { subscriptionId } = req.params
-  
+
   await subscriptionService.retryFailedPayment(subscriptionId)
 
   sendResponse(res, {
@@ -271,7 +271,7 @@ const pauseSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
   const { subscriptionId } = req.params
-  
+
   const subscription = await subscriptionService.pauseSubscription(userId, subscriptionId)
 
   sendResponse(res, {
@@ -287,7 +287,7 @@ const resumeSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
   const { subscriptionId } = req.params
-  
+
   const subscription = await subscriptionService.resumeSubscription(userId, subscriptionId)
 
   sendResponse(res, {
@@ -302,7 +302,7 @@ const resumeSubscription = catchAsync(async (req: Request, res: Response) => {
 const getUsageData = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  
+
   const { usageTrackingService } = await import('./usage-tracking.service')
   const usageData = await usageTrackingService.getUsageWithLimits(userId)
 
@@ -318,7 +318,7 @@ const getUsageData = catchAsync(async (req: Request, res: Response) => {
 const getUsageWarnings = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
   const userId = user.authId!.toString()
-  
+
   const { usageTrackingService } = await import('./usage-tracking.service')
   const warnings = await usageTrackingService.checkApproachingLimits(userId)
 
@@ -334,7 +334,7 @@ export const SubscriptionController = {
   // Public endpoints
   getAvailablePlans,
   getPlanById,
-  
+
   // User endpoints (require authentication)
   checkTrialEligibility,
   createSubscription,
@@ -348,10 +348,10 @@ export const SubscriptionController = {
   resumeSubscription,
   getUsageData,
   getUsageWarnings,
-  
+
   // Webhook endpoint
   handleWebhook,
-  
+
   // Admin endpoints (require admin role)
   createSubscriptionPlan,
   updateSubscriptionPlan,

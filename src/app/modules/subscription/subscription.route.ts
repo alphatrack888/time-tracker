@@ -83,7 +83,7 @@ router.post(
 
 router.post(
   '/:subscriptionId/reactivate',
-    auth(USER_ROLES.COMPANY),
+  auth(USER_ROLES.COMPANY),
   validateRequest(subscriptionValidation.subscriptionParams),
   SubscriptionController.reactivateSubscription,
 )
@@ -97,7 +97,7 @@ router.post(
 
 router.post(
   '/:subscriptionId/resume',
-    auth(USER_ROLES.COMPANY),
+  auth(USER_ROLES.COMPANY),
   validateRequest(subscriptionValidation.subscriptionParams),
   SubscriptionController.resumeSubscription,
 )
@@ -110,7 +110,7 @@ router.get(
 
 router.get(
   '/usage/warnings',
-    auth(USER_ROLES.COMPANY),
+  auth(USER_ROLES.COMPANY),
   SubscriptionController.getUsageWarnings,
 )
 
