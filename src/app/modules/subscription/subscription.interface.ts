@@ -37,11 +37,12 @@ export interface ISubscription {
   status: 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused'
   currentPeriodStart: Date
   currentPeriodEnd: Date
+  paymentUrl:string
   trialStart?: Date | null
   trialEnd?: Date | null
   canceledAt?: Date | null
-  pausedAt?:Date | null
-  resumedAt?:Date | null
+  pausedAt?: Date | null
+  resumedAt?: Date | null
   lastSyncedAt?:Date | null
   cancelAtPeriodEnd: boolean
   endedAt?: Date | null

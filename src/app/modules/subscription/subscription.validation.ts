@@ -10,6 +10,7 @@ export const createSubscriptionPlanSchema = z.object({
     interval: z.enum(['month', 'year'], {
       errorMap: () => ({ message: 'Interval must be month or year' }),
     }),
+    paymentUrl: z.string().url(),
     // intervalCount: z.number().min(1, 'Interval count must be at least 1').default(1),
     // trialPeriodDays: z.number().min(0, 'Trial period must be non-negative').default(10),
     features: z.array(z.string().min(1, 'Feature cannot be empty')).min(1, 'At least one feature is required'),
