@@ -17,10 +17,6 @@ const subscriptionSchema = new Schema<ISubscription, SubscriptionModel>(
       type: Number,
       required: true,
     },
-    paymentUrl: {
-      type: String,
-      required: true,
-    },
     stripeCustomerId: {
       type: String,
       required: true,

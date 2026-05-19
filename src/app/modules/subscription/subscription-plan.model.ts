@@ -71,6 +71,10 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan, SubscriptionPlanMod
       type: Number,
       default: 0,
     },
+    paymentUrl: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

@@ -18,6 +18,7 @@ export interface ISubscriptionPlan {
   stripeProductId: string
   userTypes: ('driver' | 'company' | 'mechanic' | 'cook' | 'fuel_provider')[]
   priority: number
+  paymentUrl?: string
   createdAt?: Date
   updatedAt?: Date
 }
@@ -37,7 +38,6 @@ export interface ISubscription {
   status: 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused'
   currentPeriodStart: Date
   currentPeriodEnd: Date
-  paymentUrl:string
   trialStart?: Date | null
   trialEnd?: Date | null
   canceledAt?: Date | null
