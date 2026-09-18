@@ -2,7 +2,7 @@ import express from 'express';
 import { PayroleController } from './payrole.controller';
 import auth from '../../middleware/auth';
 import { USER_ROLES } from '../../../enum/user';
-import { fileAndBodyProcessor, fileAndBodyProcessorUsingDiskStorage } from '../../middleware/processReqBody';
+import { fileAndBodyProcessorUsingDiskStorage } from '../../middleware/processReqBody';
 
 
 import validateRequest from '../../middleware/validateRequest';

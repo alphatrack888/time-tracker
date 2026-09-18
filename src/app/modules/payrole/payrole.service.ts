@@ -4,8 +4,7 @@ import { IPayrole, IPayroleFilterables } from './payrole.interface';
 import { Payrole } from './payrole.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { USER_ROLES } from '../../../enum/user';
-import { logger } from '../../../shared/logger';
-import { sendNotification } from '../../../helpers/notificationHelper';
+import { dispatchNotification } from '../../../helpers/appEvents';
 import mongoose from 'mongoose';
 
 const createPayrole = async (user: JwtPayload, employeeId: string, payload: IPayrole) => {
@@ -29,11 +28,7 @@ const createPayrole = async (user: JwtPayload, employeeId: string, payload: IPay
     };
 
 
-    try{
-       await sendNotification(notificationData.from, notificationData.to.toString(), notificationData.title, notificationData.body);
-    }catch(err){
-      logger.error("Failed to send notification for payrole creation");
-    }
+    dispatchNotification({ from: notificationData.from, to: notificationData.to.toString(), title: notificationData.title, body: notificationData.body })
 
     return "Payrole created successfully";
 };

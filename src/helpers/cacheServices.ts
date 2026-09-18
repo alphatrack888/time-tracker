@@ -1,39 +1,28 @@
-import Redis from "ioredis";
-import RedisManager from "../config/redis";
-
+import NodeCache from "node-cache";
 
 export interface CacheOptions {
   ttl?: number; // Time to live in seconds
   prefix?: string;
 }
 
+// Single in-process store shared by every CacheService instance in the app,
+// matching the old behaviour where all instances talked to the same Redis server.
+// checkperiod sweeps expired keys so they don't linger in memory after their TTL.
+const store = new NodeCache({ checkperiod: 120 });
 
 class CacheService {
-  private redis: Redis | null = null;
   private defaultTTL = 3600; // 1 hour
-
-  constructor() {
-    // Initialize Redis client lazily
-  }
-
-  private getRedisClient(): Redis {
-    if (!this.redis) {
-      this.redis = RedisManager.getInstance().getClient();
-    }
-    return this.redis;
-  }
 
   /**
    * Set a value in cache
    */
   async set(key: string, value: any, options?: CacheOptions): Promise<boolean> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
       const serializedValue = JSON.stringify(value);
-      const ttl = options?.ttl || this.defaultTTL;
+      const ttl = options?.ttl ?? this.defaultTTL;
 
-      await redis.setex(finalKey, ttl, serializedValue);
+      store.set(finalKey, serializedValue, ttl);
       return true;
     } catch (error) {
       console.error('Cache SET error:', error);
@@ -46,12 +35,11 @@ class CacheService {
    */
   async get<T = any>(key: string, options?: CacheOptions): Promise<T | null> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const value = await redis.get(finalKey);
-      
-      if (value === null) return null;
-      
+      const value = store.get<string>(finalKey);
+
+      if (value === undefined) return null;
+
       return JSON.parse(value) as T;
     } catch (error) {
       console.error('Cache GET error:', error);
@@ -64,9 +52,8 @@ class CacheService {
    */
   async del(key: string, options?: CacheOptions): Promise<boolean> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const result = await redis.del(finalKey);
+      const result = store.del(finalKey);
       return result > 0;
     } catch (error) {
       console.error('Cache DEL error:', error);
@@ -79,10 +66,8 @@ class CacheService {
    */
   async exists(key: string, options?: CacheOptions): Promise<boolean> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const result = await redis.exists(finalKey);
-      return result === 1;
+      return store.has(finalKey);
     } catch (error) {
       console.error('Cache EXISTS error:', error);
       return false;
@@ -90,21 +75,17 @@ class CacheService {
   }
 
   /**
-   * Set multiple key-value pairs using pipeline
+   * Set multiple key-value pairs
    */
   async mset(pairs: Record<string, any>, options?: CacheOptions): Promise<boolean> {
     try {
-      const redis = this.getRedisClient();
-      const ttl = options?.ttl || this.defaultTTL;
-      const pipeline = redis.pipeline();
+      const ttl = options?.ttl ?? this.defaultTTL;
 
       Object.entries(pairs).forEach(([key, value]) => {
         const finalKey = this.buildKey(key, options?.prefix);
-        const serializedValue = JSON.stringify(value);
-        pipeline.setex(finalKey, ttl, serializedValue);
+        store.set(finalKey, JSON.stringify(value), ttl);
       });
 
-      await pipeline.exec();
       return true;
     } catch (error) {
       console.error('Cache MSET error:', error);
@@ -113,16 +94,14 @@ class CacheService {
   }
 
   /**
-   * Get multiple keys using pipeline
+   * Get multiple keys
    */
   async mget<T = any>(keys: string[], options?: CacheOptions): Promise<(T | null)[]> {
     try {
-      const redis = this.getRedisClient();
-      const finalKeys = keys.map(key => this.buildKey(key, options?.prefix));
-      const values = await redis.mget(...finalKeys);
-      
-      return values.map((value: string | null) => {
-        if (value === null) return null;
+      return keys.map(key => {
+        const finalKey = this.buildKey(key, options?.prefix);
+        const value = store.get<string>(finalKey);
+        if (value === undefined) return null;
         try {
           return JSON.parse(value) as T;
         } catch {
@@ -136,44 +115,16 @@ class CacheService {
   }
 
   /**
-   * Clear keys with a pattern using SCAN (non-blocking)
-   * This is production-safe alternative to KEYS
+   * Clear keys matching a glob-style pattern (supports '*' wildcard)
    */
   async clearPattern(pattern: string): Promise<number> {
     try {
-      const redis = this.getRedisClient();
-      let deletedCount = 0;
-      const stream = redis.scanStream({
-        match: pattern,
-        count: 100, // Process 100 keys at a time
-      });
-
-      const pipeline = redis.pipeline();
-      let pendingDeletes = 0;
-
-      for await (const keys of stream) {
-        if (keys.length > 0) {
-          for (const key of keys) {
-            pipeline.del(key);
-            pendingDeletes++;
-          }
-
-          // Execute pipeline in batches of 100
-          if (pendingDeletes >= 100) {
-            const results = await pipeline.exec();
-            deletedCount += results?.filter(([err, result]) => !err && result === 1).length || 0;
-            pendingDeletes = 0;
-          }
-        }
-      }
-
-      // Execute remaining deletes
-      if (pendingDeletes > 0) {
-        const results = await pipeline.exec();
-        deletedCount += results?.filter(([err, result]) => !err && result === 1).length || 0;
-      }
-
-      return deletedCount;
+      const regex = new RegExp(
+        `^${pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`,
+      );
+      const matchingKeys = store.keys().filter(key => regex.test(key));
+      if (matchingKeys.length === 0) return 0;
+      return store.del(matchingKeys);
     } catch (error) {
       console.error('Cache CLEAR_PATTERN error:', error);
       return 0;
@@ -185,15 +136,16 @@ class CacheService {
    */
   async increment(key: string, amount: number = 1, options?: CacheOptions): Promise<number> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const result = await redis.incrby(finalKey, amount);
-      
-      // Set expiry if provided
+      const current = store.get<number>(finalKey) ?? 0;
+      const result = current + amount;
+
       if (options?.ttl) {
-        await redis.expire(finalKey, options.ttl);
+        store.set(finalKey, result, options.ttl);
+      } else {
+        store.set(finalKey, result);
       }
-      
+
       return result;
     } catch (error) {
       console.error('Cache INCREMENT error:', error);
@@ -206,16 +158,19 @@ class CacheService {
    */
   async sadd(key: string, members: string | string[], options?: CacheOptions): Promise<number> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
       const membersArray = Array.isArray(members) ? members : [members];
-      const result = await redis.sadd(finalKey, ...membersArray);
-      
+      const existing = store.get<string[]>(finalKey) ?? [];
+      const added = membersArray.filter(m => !existing.includes(m));
+      const updated = [...existing, ...added];
+
       if (options?.ttl) {
-        await redis.expire(finalKey, options.ttl);
+        store.set(finalKey, updated, options.ttl);
+      } else {
+        store.set(finalKey, updated);
       }
-      
-      return result;
+
+      return added.length;
     } catch (error) {
       console.error('Cache SADD error:', error);
       return 0;
@@ -227,9 +182,8 @@ class CacheService {
    */
   async smembers(key: string, options?: CacheOptions): Promise<string[]> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      return await redis.smembers(finalKey);
+      return store.get<string[]>(finalKey) ?? [];
     } catch (error) {
       console.error('Cache SMEMBERS error:', error);
       return [];
@@ -241,10 +195,14 @@ class CacheService {
    */
   async srem(key: string, members: string | string[], options?: CacheOptions): Promise<number> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
       const membersArray = Array.isArray(members) ? members : [members];
-      return await redis.srem(finalKey, ...membersArray);
+      const existing = store.get<string[]>(finalKey) ?? [];
+      const updated = existing.filter(m => !membersArray.includes(m));
+
+      store.set(finalKey, updated);
+
+      return existing.length - updated.length;
     } catch (error) {
       console.error('Cache SREM error:', error);
       return 0;
@@ -256,16 +214,17 @@ class CacheService {
    */
   async hset(key: string, field: string, value: any, options?: CacheOptions): Promise<boolean> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const serializedValue = JSON.stringify(value);
-      const result = await redis.hset(finalKey, field, serializedValue);
-      
+      const hash = store.get<Record<string, string>>(finalKey) ?? {};
+      hash[field] = JSON.stringify(value);
+
       if (options?.ttl) {
-        await redis.expire(finalKey, options.ttl);
+        store.set(finalKey, hash, options.ttl);
+      } else {
+        store.set(finalKey, hash);
       }
-      
-      return result >= 0;
+
+      return true;
     } catch (error) {
       console.error('Cache HSET error:', error);
       return false;
@@ -277,12 +236,12 @@ class CacheService {
    */
   async hget<T = any>(key: string, field: string, options?: CacheOptions): Promise<T | null> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const value = await redis.hget(finalKey, field);
-      
-      if (value === null) return null;
-      
+      const hash = store.get<Record<string, string>>(finalKey);
+      const value = hash?.[field];
+
+      if (value === undefined) return null;
+
       return JSON.parse(value) as T;
     } catch (error) {
       console.error('Cache HGET error:', error);
@@ -295,12 +254,10 @@ class CacheService {
    */
   async hgetall<T = any>(key: string, options?: CacheOptions): Promise<Record<string, T>> {
     try {
-      const redis = this.getRedisClient();
       const finalKey = this.buildKey(key, options?.prefix);
-      const hash = await redis.hgetall(finalKey);
-      
+      const hash = store.get<Record<string, string>>(finalKey) ?? {};
+
       const result: Record<string, T> = {};
-      
       for (const [field, value] of Object.entries(hash)) {
         try {
           result[field] = JSON.parse(value) as T;
@@ -308,7 +265,7 @@ class CacheService {
           result[field] = value as unknown as T;
         }
       }
-      
+
       return result;
     } catch (error) {
       console.error('Cache HGETALL error:', error);
@@ -321,9 +278,7 @@ class CacheService {
    */
   async getStats(): Promise<any> {
     try {
-      const redis = this.getRedisClient();
-      const info = await redis.info('memory');
-      return this.parseRedisInfo(info);
+      return store.getStats();
     } catch (error) {
       console.error('Cache STATS error:', error);
       return null;
@@ -331,16 +286,10 @@ class CacheService {
   }
 
   /**
-   * Check Redis connection health
+   * Check cache health (always available - it's in-process)
    */
   async ping(): Promise<boolean> {
-    try {
-      const redis = this.getRedisClient();
-      const result = await redis.ping();
-      return result === 'PONG';
-    } catch (error) {
-      return false;
-    }
+    return true;
   }
 
   /**
@@ -348,23 +297,6 @@ class CacheService {
    */
   private buildKey(key: string, prefix?: string): string {
     return prefix ? `${prefix}:${key}` : key;
-  }
-
-  /**
-   * Parse Redis info string
-   */
-  private parseRedisInfo(info: string): Record<string, any> {
-    const result: Record<string, any> = {};
-    const lines = info.split('\r\n');
-    
-    for (const line of lines) {
-      if (line.includes(':')) {
-        const [key, value] = line.split(':');
-        result[key] = value;
-      }
-    }
-    
-    return result;
   }
 }
 

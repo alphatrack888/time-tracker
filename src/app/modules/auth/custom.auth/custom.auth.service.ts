@@ -14,7 +14,7 @@ import { AuthCommonServices, authResponse } from '../common'
 import { jwtHelper } from '../../../../helpers/jwtHelper'
 import { JwtPayload } from 'jsonwebtoken'
 import { IUser } from '../../user/user.interface'
-import { emailHelper } from '../../../../helpers/emailHelper'
+import { dispatchEmail } from '../../../../helpers/appEvents'
 
 
 
@@ -75,7 +75,7 @@ const createUser = async (user:JwtPayload,payload: IUser) => {
   }
 
 
-  emailHelper.sendEmail(createAccount)
+  dispatchEmail(createAccount)
 
 
 
@@ -167,7 +167,7 @@ const forgetPassword = async (email?: string, phone?: string) => {
 
 
   if (phone) {
-    //implement this feature using twilio/aws sns
+    // TODO: send OTP via SMS once a provider is chosen
   }
 
   const authentication ={
@@ -196,7 +196,7 @@ const forgetPassword = async (email?: string, phone?: string) => {
       email: isUserExist.email as string,
       otp,
     })
-    emailHelper.sendEmail(forgetPasswordEmailTemplate)
+    dispatchEmail(forgetPasswordEmailTemplate)
 
 
   }
@@ -432,7 +432,7 @@ const resendOtpToPhoneOrEmail = async (
       type:authType,
     })
   
-    emailHelper.sendEmail(forgetPasswordEmailTemplate)
+    dispatchEmail(forgetPasswordEmailTemplate)
 
 
 
@@ -446,7 +446,7 @@ const resendOtpToPhoneOrEmail = async (
   }
 
   if (phone) {
-    //implement this feature using twilio/aws sns
+    // TODO: send OTP via SMS once a provider is chosen
 
     await User.findByIdAndUpdate(
       isUserExist._id,
@@ -540,7 +540,7 @@ const resendOtp = async (email:string, authType:'createAccount' | 'resetPassword
       otp,
       type: authType,
     })
-    emailHelper.sendEmail(resendOtpTemplate)
+    dispatchEmail(resendOtpTemplate)
 
   }
 

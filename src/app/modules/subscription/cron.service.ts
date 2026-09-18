@@ -1,9 +1,9 @@
-import cron from 'node-cron'
+import cron, { ScheduledTask } from 'node-cron'
 import { logger } from '../../../shared/logger'
 import { monitoringService } from './monitoring.service'
 
 class CronService {
-    private jobs: Map<string, cron.ScheduledTask> = new Map()
+    private jobs: Map<string, ScheduledTask> = new Map()
     private jobStatus: Map<string, boolean> = new Map()
 
     // Start all subscription-related cron jobs
@@ -22,7 +22,7 @@ class CronService {
 
     // Monitor subscription health every hour
     private startHealthMonitoring(): void {
-        const job = cron.schedule('0 * * * *', async () => {
+        const job = cron.createTask('0 * * * *', async () => {
             try {
                 logger.info('Running subscription health monitoring...')
                 await monitoringService.runAllMonitoringTasks()
@@ -30,7 +30,6 @@ class CronService {
                 logger.error('Error in subscription health monitoring cron:', error)
             }
         }, {
-            scheduled: false,
             timezone: 'UTC'
         })
 
@@ -45,7 +44,7 @@ class CronService {
         const reportTime = process.env.DAILY_REPORT_TIME || '09:00'
         const [hour, minute] = reportTime.split(':')
 
-        const job = cron.schedule(`${minute} ${hour} * * *`, async () => {
+        const job = cron.createTask(`${minute} ${hour} * * *`, async () => {
             try {
                 logger.info('Generating daily subscription report...')
                 const report = await monitoringService.generateDailyReport()
@@ -56,7 +55,6 @@ class CronService {
                 logger.error('Error generating daily subscription report:', error)
             }
         }, {
-            scheduled: false,
             timezone: 'UTC'
         })
 
@@ -68,7 +66,7 @@ class CronService {
 
     // Check webhook health every 6 hours
     private startWebhookHealthCheck(): void {
-        const job = cron.schedule('0 */6 * * *', async () => {
+        const job = cron.createTask('0 */6 * * *', async () => {
             try {
                 logger.info('Running webhook health check...')
                 await monitoringService.monitorWebhookHealth()
@@ -76,7 +74,6 @@ class CronService {
                 logger.error('Error in webhook health check cron:', error)
             }
         }, {
-            scheduled: false,
             timezone: 'UTC'
         })
 
@@ -88,7 +85,7 @@ class CronService {
 
     // Monitor trial conversions every 4 hours
     private startTrialConversionMonitoring(): void {
-        const job = cron.schedule('0 */4 * * *', async () => {
+        const job = cron.createTask('0 */4 * * *', async () => {
             try {
                 logger.info('Running trial conversion monitoring...')
                 await monitoringService.monitorTrialConversions()
@@ -96,7 +93,6 @@ class CronService {
                 logger.error('Error in trial conversion monitoring cron:', error)
             }
         }, {
-            scheduled: false,
             timezone: 'UTC'
         })
 

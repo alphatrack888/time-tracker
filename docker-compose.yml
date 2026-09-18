@@ -1,0 +1,45 @@
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--quiet"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      # Each tick opens a fresh mongosh connection, which mongod always logs
+      # (connection metadata + auth check) regardless of --quiet — that's
+      # baseline informational logging, not something verbosity flags
+      # suppress. Longer interval = proportionally less of that noise.
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # The only value that has to differ from native (.env's own
+      # DATABASE_URL points at "localhost", which is meaningless inside a
+      # container) — reaches Mongo by its Compose service name instead.
+      DATABASE_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/time-tracker?authSource=admin
+    ports:
+      - "5055:5055"
+    healthcheck:
+      # node:22-slim has no curl/wget, so use Node itself to hit /health.
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5055/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo_data:

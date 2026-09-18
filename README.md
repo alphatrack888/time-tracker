@@ -13,7 +13,6 @@ A robust and scalable Express.js backend template with enterprise-grade features
   - Facebook (Coming soon)
   - GitHub (Coming soon)
 - ✉️ Email verification
-- 📱 Phone verification via Twilio (Coming soon)
 - 🛡️ Rate limiting and security best practices
 
 ### File Management
@@ -89,11 +88,6 @@ SMTP_PORT=
 SMTP_USER=
 SMTP_PASS=
 
-# Twilio Config (Coming soon)
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-
 # Stripe Config (Coming soon)
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
@@ -122,7 +116,7 @@ API documentation will be available at `/api-docs` when running the server.
 ## 🛣️ Roadmap
 
 - [ ] Social authentication integration (Facebook, GitHub) (Coming soon)
-- [ ] Twilio phone verification
+- [ ] Phone verification (SMS provider TBD)
 - [ ] Stripe payment integration
 - [ ] WebSocket support
 - [ ] Redis caching

@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express, { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
+import mongoose from 'mongoose'
 
 import router from './routes'
 import { Morgan } from './shared/morgan'
@@ -34,8 +35,28 @@ app.use(express.json())
 app.use(passport.initialize())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
-//file retrieve
-app.use(express.static('uploads'))
+
+//health check
+const mongoStateNames: Record<number, string> = {
+  0: 'disconnected',
+  1: 'connected',
+  2: 'connecting',
+  3: 'disconnecting',
+}
+
+app.get('/health', (req: Request, res: Response) => {
+  const dbState = mongoose.connection.readyState
+  const dbConnected = dbState === 1
+  const healthy = dbConnected
+
+  res.status(healthy ? StatusCodes.OK : StatusCodes.SERVICE_UNAVAILABLE).json({
+    success: healthy,
+    status: healthy ? 'ok' : 'degraded',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database: mongoStateNames[dbState] ?? 'unknown',
+  })
+})
 
 //router
 app.use('/api/v1', router)

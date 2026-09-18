@@ -11,8 +11,8 @@ export interface ISubscriptionPlan {
   intervalCount: number
   // trialPeriodDays: number
   features: string[]
-  // maxUsers: number
-  // maxTrucks: number
+  maxUsers?: number
+  maxTrucks?: number
   isActive: boolean
   stripePriceId: string
   stripeProductId: string

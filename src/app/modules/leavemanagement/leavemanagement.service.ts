@@ -7,7 +7,7 @@ import { USER_ROLES } from '../../../enum/user';
 import { Leavebalance } from '../leavebalance/leavebalance.model';
 
 import { Types } from 'mongoose';
-import { sendNotification } from '../../../helpers/notificationHelper';
+import { dispatchNotification } from '../../../helpers/appEvents';
 
 const createLeavemanagement = async (
   user: JwtPayload,
@@ -43,7 +43,7 @@ const createLeavemanagement = async (
       body: `${user.name} has requested a leave from ${payload.from.toDateString()} to ${payload.to.toDateString()}`,
     }
     
-    await sendNotification(notificatonData.from, notificatonData.to.toString(), notificatonData.title, notificatonData.body)
+    dispatchNotification({ from: notificatonData.from, to: notificatonData.to.toString(), title: notificatonData.title, body: notificatonData.body })
   return result;
 };
 
@@ -162,7 +162,7 @@ const updateLeavemanagement = async (
       body: `Your leave request from ${result.from.toDateString()} to ${result.to.toDateString()} has been ${payload.status}`,  
     }
     
-    await sendNotification(notificatonData.from, notificatonData.to.toString(), notificatonData.title, notificatonData.body)
+    dispatchNotification({ from: notificatonData.from, to: notificatonData.to.toString(), title: notificatonData.title, body: notificatonData.body })
 
 
 

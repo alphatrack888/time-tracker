@@ -149,8 +149,8 @@ const updateReview = async (
     await session.commitTransaction();
 
     //clear the cache
-    await cacheService.del(`reviews:reviewer:${existingReview.reviewer}:*`);
-    await cacheService.del(`reviews:reviewee:${existingReview.reviewee}:*`);
+    await cacheService.clearPattern(`reviews:reviewer:${existingReview.reviewer}:*`);
+    await cacheService.clearPattern(`reviews:reviewee:${existingReview.reviewee}:*`);
 
     return "Review updated successfully";
   } catch (error) {
@@ -206,8 +206,8 @@ const deleteReview = async (id: string, user: JwtPayload) => {
 
     await session.commitTransaction();
     //clear the cache
-    await cacheService.del(`reviews:reviewer:${user.authId}:*`);
-    await cacheService.del(`reviews:reviewee:${existingReview.reviewee}:*`);
+    await cacheService.clearPattern(`reviews:reviewer:${user.authId}:*`);
+    await cacheService.clearPattern(`reviews:reviewee:${existingReview.reviewee}:*`);
     return "Review deleted successfully";
   } catch (error) {
     await session.abortTransaction();

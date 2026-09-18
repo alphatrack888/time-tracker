@@ -1,5 +1,5 @@
 import { logger } from '../../../shared/logger'
-import { emailHelper } from '../../../helpers/emailHelper'
+import { dispatchEmail } from '../../../helpers/appEvents'
 import { emailTemplate } from '../../../shared/emailTemplate'
 import { User } from '../user/user.model'
 import { ISubscription, ISubscriptionPlan } from './subscription.interface'
@@ -32,8 +32,8 @@ class EmailNotificationService {
         dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Subscription welcome email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Subscription welcome email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending subscription welcome email:', error)
     }
@@ -60,8 +60,8 @@ class EmailNotificationService {
         upgradeUrl: `${process.env.FRONTEND_URL}/subscription/plans`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Trial ending email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Trial ending email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending trial ending email:', error)
     }
@@ -88,8 +88,8 @@ class EmailNotificationService {
         dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Payment success email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Payment success email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending payment success email:', error)
     }
@@ -117,8 +117,8 @@ class EmailNotificationService {
         dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Payment failed email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Payment failed email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending payment failed email:', error)
     }
@@ -144,8 +144,8 @@ class EmailNotificationService {
         reactivateUrl: `${process.env.FRONTEND_URL}/subscription/plans`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Subscription canceled email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Subscription canceled email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending subscription canceled email:', error)
     }
@@ -180,8 +180,8 @@ class EmailNotificationService {
         billingUrl: `${process.env.FRONTEND_URL}/billing`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Plan change email sent to: ${user.email}`)
+      dispatchEmail(emailData)
+      logger.info(`Plan change email queued for: ${user.email}`)
     } catch (error) {
       logger.error('Error sending plan change email:', error)
     }
@@ -209,8 +209,8 @@ class EmailNotificationService {
         dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
       })
 
-      await emailHelper.sendEmail(emailData)
-      logger.info(`Invoice email sent to: ${invoice.customer_email}`)
+      dispatchEmail(emailData)
+      logger.info(`Invoice email queued for: ${invoice.customer_email}`)
     } catch (error) {
       logger.error('Error sending invoice email:', error)
     }

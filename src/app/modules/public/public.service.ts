@@ -6,7 +6,7 @@ import { Faq, Public } from './public.model'
 import { User } from '../user/user.model'
 import CacheService from '../../../helpers/cacheServices'
 import { RedisKeys } from '../../../enum/redis.keys'
-import { emailHelper } from '../../../helpers/emailHelper'
+import { dispatchEmail } from '../../../helpers/appEvents'
 
 
 // Create cache service instance
@@ -97,7 +97,7 @@ const createContact = async (payload: IContact) => {
       `,
     }
 
-   emailHelper.sendEmail(emailData)
+   dispatchEmail(emailData)
 
 
     // Send confirmation email to the user
@@ -114,7 +114,7 @@ const createContact = async (payload: IContact) => {
       `,
     }
 
-    emailHelper.sendEmail(userEmailData)
+    dispatchEmail(userEmailData)
 
 
     return {

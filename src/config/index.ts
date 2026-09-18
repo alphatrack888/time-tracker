@@ -29,12 +29,6 @@ export default {
     email:process.env.SUPER_ADMIN_EMAIL,
     password:process.env.SUPER_ADMIN_PASSWORD
   },
-  aws: {
-    access_key_id: process.env.AWS_ACCESS_KEY_ID,
-    secret_access_key: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION,
-    bucket_name: process.env.AWS_BUCKET_NAME,
-  },
   jwt: {
     jwt_secret: process.env.JWT_SECRET,
     jwt_expire_in: process.env.JWT_EXPIRE_IN,
@@ -55,25 +49,9 @@ export default {
     host: process.env.EMAIL_HOST,
     pass: process.env.EMAIL_PASS,
   },
-  twilio: {
-    account_sid: process.env.TWILIO_ACCOUNT_SID,
-    auth_token: process.env.TWILIO_AUTH_TOKEN,
-    phone_number: process.env.TWILIO_PHONE_NUMBER,
-  },
   cloudinary: {
     cloudinary_name: process.env.CLOUDINARY_NAME,
     cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
     cloudinary_secret: process.env.CLOUDINARY_SECRET,
-  },
-  redis: {
-    url: process.env.REDIS_URL || 'redis://localhost:6379',
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
-    maxRetriesPerRequest: parseInt(process.env.REDIS_MAX_RETRIES || '3', 10),
-    connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000', 10),
-    commandTimeout: parseInt(process.env.REDIS_COMMAND_TIMEOUT || '5000', 10),
-    keepAlive: parseInt(process.env.REDIS_KEEP_ALIVE || '30000', 10),
   },
 }

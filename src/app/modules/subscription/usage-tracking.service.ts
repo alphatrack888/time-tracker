@@ -45,7 +45,7 @@ class UsageTrackingService {
             // Get current truck count (you'd implement this based on your truck model)
             const currentTruckCount = await this.getCurrentTruckCount(userId)
 
-            if (currentTruckCount >= plan.maxTrucks) {
+            if (currentTruckCount >= (plan.maxTrucks ?? Infinity)) {
                 return {
                     allowed: false,
                     reason: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxTrucks} trucks.`
@@ -89,7 +89,7 @@ class UsageTrackingService {
             // Get current user count (you'd implement this based on your user model)
             const currentUserCount = await this.getCurrentUserCount(userId)
 
-            if (currentUserCount >= plan.maxUsers) {
+            if (currentUserCount >= (plan.maxUsers ?? Infinity)) {
                 return {
                     allowed: false,
                     reason: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxUsers} users.`
@@ -126,8 +126,8 @@ class UsageTrackingService {
     async getUsageWithLimits(userId: string): Promise<{
         usage: UsageData
         limits: {
-            maxTrucks: number
-            maxUsers: number
+            maxTrucks?: number
+            maxUsers?: number
         }
         percentages: {
             trucksUsed: number
@@ -169,8 +169,8 @@ class UsageTrackingService {
                     maxUsers: plan.maxUsers,
                 },
                 percentages: {
-                    trucksUsed: Math.round((usage.truckCount / plan.maxTrucks) * 100),
-                    usersUsed: Math.round((usage.userCount / plan.maxUsers) * 100),
+                    trucksUsed: Math.round((usage.truckCount / (plan.maxTrucks ?? Infinity)) * 100),
+                    usersUsed: Math.round((usage.userCount / (plan.maxUsers ?? Infinity)) * 100),
                 },
             }
         } catch (error) {

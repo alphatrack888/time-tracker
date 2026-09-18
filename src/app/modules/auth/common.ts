@@ -8,7 +8,7 @@ import { generateOtp } from '../../../utils/crypto'
 import { IAuthResponse } from './auth.interface'
 import { IUser } from '../user/user.interface'
 import { emailTemplate } from '../../../shared/emailTemplate'
-import { emailHelper } from '../../../helpers/emailHelper'
+import { dispatchEmail } from '../../../helpers/appEvents'
 
 
 const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise<IAuthResponse> => {
@@ -75,9 +75,7 @@ const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise
 
     console.log({otp})
 
-    setTimeout(() => {
-      emailHelper.sendEmail(otpTemplate)
-    },0)
+    dispatchEmail(otpTemplate)
 
     return authResponse(StatusCodes.PROXY_AUTHENTICATION_REQUIRED, `An OTP has been sent to your ${payload.email}. Please verify.`)
 

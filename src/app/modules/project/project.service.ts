@@ -9,8 +9,7 @@ import { isSetEqual, projectSearchableFields } from './project.constants';
 import { USER_ROLES } from '../../../enum/user';
 
 import { Types } from 'mongoose';
-import { sendNotification } from '../../../helpers/notificationHelper';
-import { logger } from '../../../shared/logger';
+import { dispatchNotification } from '../../../helpers/appEvents';
 import { emitEvent } from '../../../helpers/socketInstances';
 
 
@@ -250,17 +249,9 @@ const updateProject = async (
   
 
   // Send notifications if any
-  if (notificationsData.length > 0) {
-    try {
-      //use promise all to send notification to each employee
-      await Promise.all(notificationsData.map(async (notification) => {
-        await sendNotification(notification.from.toString(), notification.to.toString(), notification.title, notification.body)
-      }))
-    } catch (error) {
-      logger.error('Failed to queue notifications:', error);
-
-    }
-  }
+  notificationsData.forEach(notification => {
+    dispatchNotification({ from: notification.from.toString(), to: notification.to.toString(), title: notification.title, body: notification.body })
+  })
 
   return updatedProject;
 };

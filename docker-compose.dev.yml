@@ -1,0 +1,16 @@
+services:
+  # Expose Mongo to the host too, purely for local inspection (Compass, mongosh).
+  # Not present in the prod override — no reason to expose it on a public VPS.
+  mongo:
+    ports:
+      - "27017:27017"
+
+  app:
+    build:
+      target: dev
+    volumes:
+      - .:/app
+      # Anonymous volume: keeps the container's own (Linux-built) node_modules
+      # from being shadowed by the bind mount above — the host's node_modules
+      # may be built for a different OS/arch (bcrypt is a native module).
+      - /app/node_modules

@@ -22,8 +22,6 @@ let io: Server
 
 async function main() {
   try {
-    // Initialize Redis connection
-
     logger.info(colors.blue(`🚀 Connecting to database: ${config.database_url}`))
     // Connect to MongoDB
     await mongoose.connect(config.database_url as string)
@@ -32,7 +30,7 @@ async function main() {
     const port = typeof config.port === 'number' ? config.port : Number(config.port)
 
     server = app.listen(port, config.ip_address as string, () => {
-      logger.info(colors.yellow(`♻️  Application listening on port:${config.port}`))
+      logger.info(colors.yellow.bold(`♻️  Server running on port ${port} — http://localhost:${port}`))
     })
 
     // Initialize Socket.IO with enhanced configuration
