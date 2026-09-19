@@ -23,7 +23,7 @@
     "docker:build:prod": "docker build --platform linux/arm64 --target prod -t shfayetwt/time-tracker-backend:latest .",
     "docker:push": "docker push shfayetwt/time-tracker-backend:latest",
     "docker:release": "npm run docker:build:prod && npm run docker:push",
-    "lint:check": "eslint --ignore-path .eslintignore --ext .js,.ts .",
+    "lint:check": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier:check": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "prettier:fix": "prettier --write .",
@@ -61,6 +61,8 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^9.39.5",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

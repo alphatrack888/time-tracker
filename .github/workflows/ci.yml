@@ -1,0 +1,78 @@
+name: CI — Checks, Build & Push Docker Image
+
+# CI only. Deploying the published image to the server is a separate,
+# manual step for now (docker compose pull && up -d on the Hetzner box) —
+# CD comes later.
+#
+# Triggers ONLY for main: either a direct push to main, or a pull request
+# whose target (base) branch is main — regardless of the source branch's
+# name. Nothing else (other branches, PRs targeting other branches) runs
+# this workflow at all.
+#
+# `checks` (type-check + lint) runs for both cases, so a PR gets validated
+# before merge. `build-and-push` — which actually publishes to Docker Hub —
+# is gated to real pushes to main only (see its `if:`), since publishing an
+# image for every unmerged PR would be wasteful and isn't something you'd
+# normally want.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run build
+
+      - name: Lint (non-blocking — 166 pre-existing issues not yet cleaned up)
+        run: npm run lint:check
+        continue-on-error: true
+
+  build-and-push:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Hetzner server is ARM64 (Hetzner CAX line), but GitHub's
+      # standard runners are x86_64 — QEMU + Buildx let us cross-build
+      # an arm64 image here. Slower than a native build, not a problem.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          platforms: linux/arm64
+          push: true
+          tags: |
+            shfayetwt/time-tracker-backend:latest
+            shfayetwt/time-tracker-backend:${{ github.sha }}
