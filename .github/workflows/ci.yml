@@ -99,10 +99,7 @@ jobs:
             MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
             BCRYPT_SALT_ROUNDS=${{ secrets.BCRYPT_SALT_ROUNDS }}
             EMAIL_FROM=${{ secrets.EMAIL_FROM }}
-            EMAIL_USER=${{ secrets.EMAIL_USER }}
-            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
-            EMAIL_PORT=${{ secrets.EMAIL_PORT }}
-            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             JWT_EXPIRE_IN=${{ secrets.JWT_EXPIRE_IN }}
             JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
