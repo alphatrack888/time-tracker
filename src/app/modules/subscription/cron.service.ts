@@ -47,7 +47,7 @@ class CronService {
         const job = cron.createTask(`${minute} ${hour} * * *`, async () => {
             try {
                 logger.info('Generating daily subscription report...')
-                const report = await monitoringService.generateDailyReport()
+                await monitoringService.generateDailyReport()
 
                 // You could send this report via email or Slack
                 logger.info('Daily subscription report generated successfully')

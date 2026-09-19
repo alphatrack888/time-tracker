@@ -4,7 +4,7 @@ import ApiError from '../../errors/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { CloudinaryHelper, UploadFieldName } from '../../helpers/image/cloudinaryHelper'
 
-interface ProcessedFiles {
+type ProcessedFiles = {
   [key: string]: string | string[] | undefined
 }
 
@@ -48,7 +48,7 @@ export const fileAndBodyProcessorUsingDiskStorage = () => {
         )
       }
       cb(null, true)
-    } catch (error) {
+    } catch {
       cb(
         new ApiError(
           StatusCodes.INTERNAL_SERVER_ERROR,

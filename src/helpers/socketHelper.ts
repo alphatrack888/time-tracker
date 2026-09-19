@@ -8,12 +8,12 @@ import { JwtPayload } from 'jsonwebtoken'
 import { socketMiddleware } from '../app/middleware/socketAuth'
 
 // Define interface for socket with user data
-export interface SocketWithUser extends Socket {
+export type SocketWithUser = {
   user?: JwtPayload & {
     authId: string
     role: string
   }
-}
+} & Socket
 
 const socket = (io: Server) => {
   // Enhanced Socket.IO server configuration
@@ -141,8 +141,7 @@ const registerEventHandlers = (socket: SocketWithUser) => {
     const userData = onlineUsers.get(socket.id)
     onlineUsers.delete(socket.id)
     
-    const disconnectTime = new Date().toISOString()
-    const connectionDuration = userData?.connectedAt 
+    const connectionDuration = userData?.connectedAt
       ? Date.now() - new Date(userData.connectedAt).getTime()
       : 0
     

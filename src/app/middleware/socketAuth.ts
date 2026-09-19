@@ -29,7 +29,7 @@ const socketAuth = (...roles: string[]) => {
         }
   
         try {
-          let jwtToken = extractToken(token)
+          const jwtToken = extractToken(token)
   
           // Verify token
           const verifiedUser = jwtHelper.verifyToken(jwtToken, config.jwt.jwt_secret as Secret)
@@ -89,7 +89,7 @@ const socketAuth = (...roles: string[]) => {
         socket.handshake.query.token ||
         socket.handshake.headers.authorization
   
-      let jwtToken = extractToken(token)
+      const jwtToken = extractToken(token)
   
       // Verify token
       const verifiedUser = jwtHelper.verifyToken(jwtToken, config.jwt.jwt_secret as Secret)

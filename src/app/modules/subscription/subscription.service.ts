@@ -397,7 +397,7 @@ class SubscriptionService {
       }
 
       const plan = await this.getPlanById(planId)
-      const trialInfo = await this.checkTrialEligibility(userId)
+      await this.checkTrialEligibility(userId)
 
       const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/['"]/g, '').replace(/\/$/, '').trim()
       const finalSuccessUrl = successUrl || `${baseUrl}/subscription-success`

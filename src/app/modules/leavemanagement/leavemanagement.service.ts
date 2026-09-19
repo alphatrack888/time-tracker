@@ -67,7 +67,7 @@ const getAllLeavemanagements = async (user: JwtPayload, filters: ILeavemanagemen
     })
   }
 
-  let populatedFields = []
+  const populatedFields = []
   if(user.role === USER_ROLES.COMPANY) {
     populatedFields.push({
       path: 'user'

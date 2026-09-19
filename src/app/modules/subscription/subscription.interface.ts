@@ -1,7 +1,7 @@
 import { Model, Types } from 'mongoose'
 
 // Subscription Plan Interface
-export interface ISubscriptionPlan {
+export type ISubscriptionPlan = {
   _id?: Types.ObjectId
   name: string
   description: string
@@ -26,7 +26,7 @@ export interface ISubscriptionPlan {
 export type SubscriptionPlanModel = Model<ISubscriptionPlan>
 
 // Subscription Interface
-export interface ISubscription {
+export type ISubscription = {
   _id?: Types.ObjectId
   userId: Types.ObjectId
   planId: Types.ObjectId
@@ -53,39 +53,39 @@ export interface ISubscription {
   paymentFailureCount: number
   fraudFlags?:string
   lastWebhookEventId?: string | null
-  riskScore?:Number
+  riskScore?:number
   createdAt?: Date
   updatedAt?: Date
 }
 
-export interface SubscriptionModel extends Model<ISubscription> {
+export type SubscriptionModel = {
   findActiveByUserId(userId: string): Promise<ISubscription | null>
   findByStripeId(stripeSubscriptionId: string): Promise<ISubscription | null>
-}
+} & Model<ISubscription>
 
 // Request/Response Types
-export interface CreateSubscriptionRequest {
+export type CreateSubscriptionRequest = {
   planId: string
   paymentMethodId?: string
   couponId?: string
 }
 
-export interface UpdateSubscriptionRequest {
+export type UpdateSubscriptionRequest = {
   planId?: string
   cancelAtPeriodEnd?: boolean
 }
 
-export interface SubscriptionResponse {
+export type SubscriptionResponse = {
   subscription: ISubscription
   clientSecret?: string
 }
 
-export interface PlanResponse {
+export type PlanResponse = {
   plans: ISubscriptionPlan[]
 }
 
 // Webhook Event Types
-export interface StripeWebhookEvent {
+export type StripeWebhookEvent = {
   id: string
   type: string
   data: {
@@ -95,7 +95,7 @@ export interface StripeWebhookEvent {
 }
 
 // Trial Management
-export interface TrialInfo {
+export type TrialInfo = {
   isEligible: boolean
   hasUsedTrial: boolean
   trialDays: number
@@ -103,7 +103,7 @@ export interface TrialInfo {
 }
 
 // Subscription Status Check
-export interface SubscriptionStatus {
+export type SubscriptionStatus = {
   isActive: boolean
   isTrialing: boolean
   isPastDue: boolean

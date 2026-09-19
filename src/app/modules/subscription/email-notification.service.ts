@@ -99,7 +99,7 @@ class EmailNotificationService {
   async sendPaymentFailedEmail(
     subscription: ISubscription,
     invoice: Stripe.Invoice,
-    attemptCount: number
+    _attemptCount: number
   ): Promise<void> {
     try {
       const user = await User.findById(subscription.userId).select('+email')

@@ -1,6 +1,6 @@
 import NodeCache from "node-cache";
 
-export interface CacheOptions {
+export type CacheOptions = {
   ttl?: number; // Time to live in seconds
   prefix?: string;
 }

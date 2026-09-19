@@ -1,11 +1,11 @@
-import { Model, Types } from 'mongoose'
+import { Model } from 'mongoose'
 
 export type IPublic = {
   content: string
   type: string
 }
 
-export interface IContact {
+export type IContact = {
   name: string
   email: string
   phone: string

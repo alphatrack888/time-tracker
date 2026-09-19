@@ -1,4 +1,4 @@
-export interface AnalyticsQuery {
+export type AnalyticsQuery = {
 
   userId: string;
   date?: string;
@@ -9,7 +9,7 @@ export interface AnalyticsQuery {
   includeChart?: boolean;
 }
 
-export interface WorkingStats {
+export type WorkingStats = {
 
   workingHours: number;
   breakHours: number;
@@ -18,7 +18,7 @@ export interface WorkingStats {
   sessions: number;
 }
 
-export interface DailyBreakdown {
+export type DailyBreakdown = {
   date: string;
   day: string;
   workingHours: number;
@@ -27,7 +27,7 @@ export interface DailyBreakdown {
   formattedDate: string;
 }
 
-export interface LocationQuery {
+export type LocationQuery = {
   userId: string;
   date?: string;
   startDate?: string;
@@ -36,7 +36,7 @@ export interface LocationQuery {
   actions?: string[]; // filter by specific actions ['start', 'pause', 'resume', 'stop', 'periodic']
 }
 
-export interface LocationPoint {
+export type LocationPoint = {
 
   timestamp: Date;
   coordinates: [number, number]; // [longitude, latitude]

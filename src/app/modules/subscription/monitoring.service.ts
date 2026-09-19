@@ -104,7 +104,7 @@ class MonitoringService {
                 status: { $in: ['active', 'trialing'] },
             }).populate(['userId', 'planId'])
 
-            for (const subscription of activeSubscriptions) {
+            for (const _subscription of activeSubscriptions) {
                 // Example usage monitoring logic
                 // const usage = await getUserUsage(subscription.userId)
                 // const plan = subscription.planId as ISubscriptionPlan

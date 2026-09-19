@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express'
+import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import catchAsync from '../../../shared/catchAsync'
 import sendResponse from '../../../shared/sendResponse'
@@ -15,7 +15,7 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
     userData.profile = images[0]
   }
   const result = await UserServices.updateProfile(req.user!, userData)
-  sendResponse<String>(res, {
+  sendResponse<string>(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: 'Profile updated successfully',

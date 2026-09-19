@@ -23,7 +23,7 @@ const rateLimitMiddleware = (maxRequests: number, windowMs: number) => {
       res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - current));
       
       next();
-    } catch (error) {
+    } catch {
       next();
     }
   };

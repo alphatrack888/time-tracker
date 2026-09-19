@@ -1,6 +1,5 @@
 import { Schema,  model } from 'mongoose';
-import { IProject, ProjectModel } from './project.interface'; 
-import { populate } from 'dotenv';
+import { IProject, ProjectModel } from './project.interface';
 
 const projectSchema = new Schema<IProject, ProjectModel>({
   title: { type: String },

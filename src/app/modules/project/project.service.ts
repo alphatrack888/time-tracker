@@ -70,7 +70,7 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
   }
 
   const whereConditions = andConditions.length ? {$and: andConditions} : {};
-  let populate = [
+  const populate = [
     {
       path: 'company',
       select: 'name ',
@@ -102,7 +102,7 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
 };
 
 const getSingleProject = async (user: JwtPayload, id: string) => {
-  let populate = [
+  const populate = [
     {
       path: 'company',
       select: 'name ',

@@ -1,7 +1,6 @@
 import { USER_ROLES } from "../../../enum/user"
 import { User } from "../user/user.model"
 import { Subscription } from "../subscription/subscription.model"
-import { SubscriptionPlan } from "../subscription/subscription-plan.model"
 import { stripeService } from "../subscription/stripe.service"
 import { months } from "./dashboard.constants"
 import { Project } from "../project/project.model"
@@ -290,12 +289,13 @@ const getDateRange = (query: Partial<AnalyticsQuery>) => {
           startDate: today.format('YYYY-MM-DD'),
           endDate: today.format('YYYY-MM-DD')
         };
-      case 'yesterday':
+      case 'yesterday': {
         const yesterday = today.clone().subtract(1, 'day');
         return {
           startDate: yesterday.format('YYYY-MM-DD'),
           endDate: yesterday.format('YYYY-MM-DD')
         };
+      }
       case 'week':
         return {
           startDate: today.clone().startOf('week').format('YYYY-MM-DD'),
@@ -357,12 +357,13 @@ const getComparisonDateRange = (
         startDate: start.clone().subtract(1, 'month').format('YYYY-MM-DD'),
         endDate: end.clone().subtract(1, 'month').format('YYYY-MM-DD')
       };
-    case 'yesterday':
+    case 'yesterday': {
       const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
       return {
         startDate: yesterday,
         endDate: yesterday
       };
+    }
     default:
       return {
         startDate: start.clone().subtract(1, 'day').format('YYYY-MM-DD'),
