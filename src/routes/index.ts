@@ -14,6 +14,7 @@ import { TimeTrackerRoutes } from '../app/modules/timetracker/timetracker.route'
 import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route'
 import { dashboardRoutes } from '../app/modules/dashboard/dashboard.route'
 import { GalleryRoutes } from '../app/modules/gallery/gallery.route'
+import { TruckRoutes } from '../app/modules/truck/truck.route'
 
 
 
@@ -34,7 +35,8 @@ const apiRoutes: { path: string; route: Router }[] = [
   { path: '/subscriptions', route: SubscriptionRoutes },
   { path: '/timetracker', route: TimeTrackerRoutes }, 
   { path: '/dashboard', route: dashboardRoutes },
-  { path: '/gallery', route: GalleryRoutes }]
+  { path: '/gallery', route: GalleryRoutes },
+  { path: '/truck', route: TruckRoutes }]
 
 apiRoutes.forEach(route => {
   router.use(route.path, route.route)
