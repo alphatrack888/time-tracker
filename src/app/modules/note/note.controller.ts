@@ -31,9 +31,9 @@ import { NOTE_FILTERS } from './note.constants';
     const {images, documents,...noteData} = req.body;
 
     if(images && images?.length > 0) noteData.images = images;
-    if(documents && documents?.length > 0) noteData.documents = documents;
+    if(documents && documents?.length > 0) noteData.files = documents;
 
-    const result = await NoteServices.updateNote(id, noteData);
+    const result = await NoteServices.updateNote(req.user!, id, noteData);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -45,7 +45,7 @@ import { NOTE_FILTERS } from './note.constants';
   
   const getSingleNote = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await NoteServices.getSingleNote(id);
+    const result = await NoteServices.getSingleNote(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -69,7 +69,7 @@ import { NOTE_FILTERS } from './note.constants';
   
   const deleteNote = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await NoteServices.deleteNote(id);
+    const result = await NoteServices.deleteNote(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,

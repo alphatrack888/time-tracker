@@ -46,7 +46,7 @@ const getLocationsByDate = catchAsync(async (req: Request, res: Response) => {
   const filters = { date: req.query.date as string, project: req.query.project as string, employee: req.query.employee as string };
   const pagination = pick(req.query, paginationFields);
 
-  const result = await TimeTrackerService.getLocationsByDate( filters, pagination);
+  const result = await TimeTrackerService.getLocationsByDate(req.user!, filters, pagination);
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: 'Locations fetched', data: result });
 });
 

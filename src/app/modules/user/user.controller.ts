@@ -49,7 +49,7 @@ const getProfile = catchAsync(async (req: Request, res: Response) => {
 
 const getSingleUser = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params
-  const result = await UserServices.getSingleUser(id)
+  const result = await UserServices.getSingleUser(req.user!, id)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,

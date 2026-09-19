@@ -221,15 +221,15 @@ class UsageTrackingService {
         }
     }
 
-    private async getCurrentUserCount(_userId: string): Promise<number> {
+    private async getCurrentUserCount(userId: string): Promise<number> {
         try {
-            // Replace with your actual user counting logic
-            // For companies, count team members
-            // const count = await User.countDocuments({ companyId: userId, status: 'active' })
-            // return count
-
-            // Placeholder implementation
-            return 1 // At least the owner
+            const { User } = await import('../user/user.model')
+            const { USER_STATUS } = await import('../../../enum/user')
+            const employeeCount = await User.countDocuments({
+                company: new Types.ObjectId(userId),
+                status: { $ne: USER_STATUS.DELETED },
+            })
+            return employeeCount + 1 // +1 for the company owner account itself
         } catch (error) {
             logger.error('Error getting user count:', error)
             return 1

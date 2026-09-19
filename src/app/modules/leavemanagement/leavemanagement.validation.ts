@@ -3,7 +3,6 @@ import { z } from 'zod';
 export const LeavemanagementValidations = {
   create: z.object({
     body: z.object({
-      company: z.string(),
       type: z.string({
         required_error: 'Type is required',
         invalid_type_error: 'Type must be a string',

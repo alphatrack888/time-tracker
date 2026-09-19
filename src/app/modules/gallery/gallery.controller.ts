@@ -20,7 +20,7 @@ import { Request, Response } from 'express';
   const updateGallery = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
     const galleryData = req.body;
-    const result = await GalleryServices.updateGallery(id, galleryData);
+    const result = await GalleryServices.updateGallery(req.user!, id, galleryData);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -32,7 +32,7 @@ import { Request, Response } from 'express';
   
   const getSingleGallery = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await GalleryServices.getSingleGallery(id);
+    const result = await GalleryServices.getSingleGallery(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -56,7 +56,7 @@ import { Request, Response } from 'express';
   const deleteImages = catchAsync(async (req: Request, res: Response) => {
     const { images } = req.body;
     console.log(images)
-    const result = await GalleryServices.deleteImages(images);
+    const result = await GalleryServices.deleteImages(req.user!, images);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,

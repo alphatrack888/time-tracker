@@ -41,7 +41,7 @@ import { Request, Response } from 'express';
   });
   
   const getLeaveBalanceByCompany = catchAsync(async (req: Request, res: Response) => {
-    const result = await LeavebalanceServices.getLeaveBalanceByCompany(req.params.companyId);
+    const result = await LeavebalanceServices.getLeaveBalanceByCompany(req.user!, req.params.companyId);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -53,7 +53,7 @@ import { Request, Response } from 'express';
   
   const deleteLeavebalance = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await LeavebalanceServices.deleteLeavebalance(id);
+    const result = await LeavebalanceServices.deleteLeavebalance(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,

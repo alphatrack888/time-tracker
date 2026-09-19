@@ -77,9 +77,15 @@ export const generalGetAllUsers = async(user:JwtPayload, filter:IUserFilter, pag
     andCondition.push({$and: Object.entries(restFilters).map(([key, value]) => ({ [key]: value }))})
   }
 
+  // Scope to the caller's own tenant. SUPER_ADMIN/ADMIN intentionally see
+  // everyone (the admin dashboard lists all companies via this endpoint);
+  // COMPANY/EMPLOYEES only ever see users within their own company.
+  if (user.role === USER_ROLES.COMPANY) {
+    andCondition.push({ company: user.authId })
+  } else if (user.role === USER_ROLES.EMPLOYEES) {
+    andCondition.push({ company: user.company })
+  }
 
-  
-  
   if (latitude && longitude && distance) {
     andCondition.push({
       location: {
@@ -126,11 +132,24 @@ const getProfile = async (user:JwtPayload) => {
   return result
 }
 
-const getSingleUser = async (id: string) => {
+const getSingleUser = async (user: JwtPayload, id: string) => {
   const result = await User.findById(id).populate('company').lean()
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'The requested user not found!')
   }
+
+  // SUPER_ADMIN/ADMIN can view anyone. COMPANY/EMPLOYEES may only view
+  // themselves or another user within their own company.
+  if (user.role === USER_ROLES.COMPANY || user.role === USER_ROLES.EMPLOYEES) {
+    const ownCompanyId = user.role === USER_ROLES.COMPANY ? user.authId : user.company
+    const populatedCompany = result.company as unknown as { _id?: Types.ObjectId } | Types.ObjectId | undefined
+    const targetCompanyId = (populatedCompany as { _id?: Types.ObjectId })?._id?.toString() ?? (populatedCompany as Types.ObjectId)?.toString()
+
+    if (result._id.toString() !== user.authId && targetCompanyId !== ownCompanyId) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this user')
+    }
+  }
+
   return result
 }
 
@@ -180,13 +199,13 @@ const getWorkingHoursSummary = async (user: JwtPayload, date?: string) => {
   console.log(now)
   const [todaySessions, weekSessions, monthSessions] = await Promise.all([
     TimeSession.find({ user: new Types.ObjectId(user.authId), date: today}).lean(),
-    TimeSession.find({ 
-      user: user.authId, 
-      date: { $gte: weekStartStr, $lte: now } 
+    TimeSession.find({
+      user: user.authId,
+      date: { $gte: weekStartStr, $lte: today }
     }).lean(),
-    TimeSession.find({ 
-      user: user.authId, 
-      date: { $gte: monthStartStr, $lte: now } 
+    TimeSession.find({
+      user: user.authId,
+      date: { $gte: monthStartStr, $lte: today }
     }).lean()
   ])
   

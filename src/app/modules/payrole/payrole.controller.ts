@@ -29,7 +29,7 @@ import { payroleFilterables } from './payrole.constants';
     if(documents && documents.length > 0){
       payroleData.files = documents;
     }
-    const result = await PayroleServices.updatePayrole(id, payroleData);
+    const result = await PayroleServices.updatePayrole(req.user!, id, payroleData);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -41,7 +41,7 @@ import { payroleFilterables } from './payrole.constants';
   
   const getSinglePayrole = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await PayroleServices.getSinglePayrole(id);
+    const result = await PayroleServices.getSinglePayrole(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
@@ -65,7 +65,7 @@ import { payroleFilterables } from './payrole.constants';
   
   const deletePayrole = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await PayroleServices.deletePayrole(id);
+    const result = await PayroleServices.deletePayrole(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,
