@@ -69,7 +69,7 @@ const createAdmin = async (): Promise<Partial<IUser> | null> => {
 
 export const generalGetAllUsers = async(user:JwtPayload, filter:IUserFilter, paginationOptions:IPaginationOptions)=>{
   const{page,limit,skip,sortBy,sortOrder} = paginationHelper.calculatePagination(paginationOptions)
-  const {searchTerm, latitude, longitude, fromLat, toLat, fromLong, toLong, distance, ...restFilters} = filter
+  const {latitude, longitude, distance, ...restFilters} = filter
 
   const andCondition = []
 

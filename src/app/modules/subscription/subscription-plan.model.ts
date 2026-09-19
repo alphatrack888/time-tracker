@@ -1,4 +1,4 @@
-import mongoose, { Schema, model } from 'mongoose'
+import { Schema, model } from 'mongoose'
 import { ISubscriptionPlan, SubscriptionPlanModel } from './subscription.interface'
 
 const subscriptionPlanSchema = new Schema<ISubscriptionPlan, SubscriptionPlanModel>(

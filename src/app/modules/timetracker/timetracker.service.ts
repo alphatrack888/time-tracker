@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import { ITimeSession, ITimeSessionFilters } from './timetracker.interface';
+import { ITimeSession } from './timetracker.interface';
 import { TimeSession } from './timetracker.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { Types } from 'mongoose';
@@ -8,7 +8,7 @@ import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { Project } from '../project/project.model';
 import { User } from '../user/user.model';
-import { generateMonthlyTimeReportPdf, generateTimesheetStyleMonthlyReport, generateComprehensiveTimesheetReport } from '../../../helpers/pdfHelper';
+import { generateComprehensiveTimesheetReport } from '../../../helpers/pdfHelper';
 
 const startTimer = async (user: JwtPayload, payload: { project?: string; location?: { lat: number; lng: number } }) => {
   const now = new Date();

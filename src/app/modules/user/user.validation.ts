@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { USER_ROLES } from '../../../enum/user'
-import { profile } from 'console'
 
 const createUserZodSchema = z.object({
   body: z.object({

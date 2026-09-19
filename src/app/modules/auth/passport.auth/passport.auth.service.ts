@@ -1,5 +1,4 @@
 import { USER_STATUS } from '../../../../enum/user'
-import { ILoginData } from '../../../../interfaces/auth'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '../../../../errors/ApiError'
 import { User } from '../../user/user.model'

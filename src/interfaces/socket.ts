@@ -1,17 +1,17 @@
 import { JwtPayload } from "jsonwebtoken";
 import { Socket } from "socket.io";
 
-export interface SocketWithUser extends Socket {
+export type SocketWithUser = {
     user?: JwtPayload & {
       authId: string
       name: string
       role: string
     }
-  }
+  } & Socket
 
 
   // Standard error response format
-export interface ErrorResponse {
+export type ErrorResponse = {
     statusCode: number
     error: string
     message: string

@@ -298,7 +298,7 @@ const verifyAccount = async (email:string, onetimeCode: string):Promise<IAuthRes
   }
 
   const currentDate = new Date()
-  if (authentication?.expiresAt! < currentDate) {
+  if (authentication.expiresAt! < currentDate) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       'OTP has expired, please try again.',
@@ -409,7 +409,7 @@ const resendOtpToPhoneOrEmail = async (
 
   //check the request count
   const { authentication } = isUserExist
-  if (authentication?.requestCount! >= 5) {
+  if (authentication.requestCount! >= 5) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       'You have exceeded the maximum number of requests. Please try again later.',
@@ -419,7 +419,7 @@ const resendOtpToPhoneOrEmail = async (
   const updatedAuthentication = {
     oneTimeCode: otp,
     latestRequestAt: new Date(),
-    requestCount: authentication?.requestCount! + 1,
+    requestCount: authentication.requestCount! + 1,
     expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
   }
 
@@ -513,7 +513,7 @@ const resendOtp = async (email:string, authType:'createAccount' | 'resetPassword
   const authenticationPayload = {
     oneTimeCode: otp,
     latestRequestAt: new Date(),
-    requestCount: authentication?.requestCount! + 1,
+    requestCount: authentication.requestCount! + 1,
     expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
   }
 

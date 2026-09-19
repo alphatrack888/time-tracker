@@ -47,7 +47,7 @@ const createReview = async (user:JwtPayload,payload: IReview) => {
 
     await session.commitTransaction();
     return result[0];
-  } catch (error) {
+  } catch {
     await session.abortTransaction();
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create Review, please try again later.')
   }finally {
@@ -153,7 +153,7 @@ const updateReview = async (
     await cacheService.clearPattern(`reviews:reviewee:${existingReview.reviewee}:*`);
 
     return "Review updated successfully";
-  } catch (error) {
+  } catch {
     await session.abortTransaction();
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Update review failed.');
   } finally {
@@ -209,7 +209,7 @@ const deleteReview = async (id: string, user: JwtPayload) => {
     await cacheService.clearPattern(`reviews:reviewer:${user.authId}:*`);
     await cacheService.clearPattern(`reviews:reviewee:${existingReview.reviewee}:*`);
     return "Review deleted successfully";
-  } catch (error) {
+  } catch {
     await session.abortTransaction();
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Delete review failed.');
   } finally {

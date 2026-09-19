@@ -120,7 +120,7 @@ const createContact = async (payload: IContact) => {
     return {
       message: 'Contact form submitted successfully',
     }
-  } catch (error) {
+  } catch {
     throw new ApiError(
       StatusCodes.INTERNAL_SERVER_ERROR,
       'Failed to submit contact form',

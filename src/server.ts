@@ -52,7 +52,7 @@ async function main() {
     // Initialize Socket.IO handlers
     socketHelper.socket(io)
     setSocketIO(io)
-    //@ts-ignore
+    //@ts-expect-error - augmenting the global object with the io instance
     global.io = io
 
 

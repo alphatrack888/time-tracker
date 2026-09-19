@@ -468,7 +468,7 @@ class WebhookService {
   // Handle checkout session completed
   private async handleCheckoutCompleted(
     session: Stripe.Checkout.Session,
-    eventId: string,
+    _eventId: string,
   ): Promise<void> {
     try {
       if (session.mode !== 'subscription') {
@@ -633,7 +633,7 @@ class WebhookService {
   // Handle payment method attached
   private async handlePaymentMethodAttached(
     paymentMethod: Stripe.PaymentMethod,
-    eventId: string,
+    _eventId: string,
   ): Promise<void> {
     try {
       // Log payment method attachment for security monitoring
@@ -650,7 +650,7 @@ class WebhookService {
   }
 
   // Handle customer updated
-  private async handleCustomerUpdated(stripeCustomer: Stripe.Customer, eventId: string): Promise<void> {
+  private async handleCustomerUpdated(stripeCustomer: Stripe.Customer, _eventId: string): Promise<void> {
     try {
       // Update user information if customer details changed
       const subscription = await Subscription.findOne({
@@ -727,7 +727,7 @@ class WebhookService {
   }
 
   // Handle invoice created
-  private async handleInvoiceCreated(invoice: Stripe.Invoice, eventId: string): Promise<void> {
+  private async handleInvoiceCreated(invoice: Stripe.Invoice, _eventId: string): Promise<void> {
     try {
       const subscriptionId = invoice.lines?.data?.find(line => line.subscription)?.subscription ?? null;
       if (!subscriptionId) {
@@ -893,7 +893,7 @@ class WebhookService {
   // Handle setup intent succeeded (for saving payment methods)
   private async handleSetupIntentSucceeded(
     setupIntent: Stripe.SetupIntent,
-    eventId: string,
+    _eventId: string,
   ): Promise<void> {
     try {
       logger.info(`Setup intent succeeded: ${setupIntent.id}`)
@@ -909,7 +909,7 @@ class WebhookService {
   // Handle payment method automatically updated (card expiry updates)
   private async handlePaymentMethodUpdated(
     paymentMethod: Stripe.PaymentMethod,
-    eventId: string,
+    _eventId: string,
   ): Promise<void> {
     try {
       logger.info(`Payment method automatically updated: ${paymentMethod.id}`)

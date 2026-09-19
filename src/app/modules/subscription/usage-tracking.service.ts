@@ -1,12 +1,11 @@
 import { Types } from 'mongoose'
 import { logger } from '../../../shared/logger'
 import { Subscription } from './subscription.model'
-import { User } from '../user/user.model'
 import { ISubscriptionPlan } from './subscription.interface'
 import ApiError from '../../../errors/ApiError'
 import { StatusCodes } from 'http-status-codes'
 
-interface UsageData {
+type UsageData = {
     userId: string
     truckCount: number
     userCount: number
@@ -208,7 +207,7 @@ class UsageTrackingService {
     }
 
     // Private helper methods (implement based on your data models)
-    private async getCurrentTruckCount(userId: string): Promise<number> {
+    private async getCurrentTruckCount(_userId: string): Promise<number> {
         try {
             // Replace with your actual truck counting logic
             // const count = await Truck.countDocuments({ ownerId: userId, status: 'active' })
@@ -222,7 +221,7 @@ class UsageTrackingService {
         }
     }
 
-    private async getCurrentUserCount(userId: string): Promise<number> {
+    private async getCurrentUserCount(_userId: string): Promise<number> {
         try {
             // Replace with your actual user counting logic
             // For companies, count team members

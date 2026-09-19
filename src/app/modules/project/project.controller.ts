@@ -8,7 +8,7 @@ import { projectFilterables } from './project.constants';
 import { paginationFields } from '../../../interfaces/pagination';
   
   const createProject = catchAsync(async (req: Request, res: Response) => {
-    const {images, media, audio, ...projectData} = req.body;
+    const {images, audio, ...projectData} = req.body;
     projectData.images = images?.map((item: string) => item);
     projectData.audio = audio?.[0];
     

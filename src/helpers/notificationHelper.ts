@@ -1,6 +1,5 @@
 import { Notification } from '../app/modules/notifications/notifications.model'
 import { logger } from '../shared/logger'
-import { socket } from '../utils/socket'
 import { sendPushNotification } from './pushnotificationHelper'
 import { emitEvent } from './socketInstances'
 
@@ -33,7 +32,7 @@ export const sendNotification = async (
      await sendPushNotification(deviceToken, title, body, { from, to })
     }
   } catch (err) {
-    //@ts-ignore
+    //@ts-expect-error - logger.error's typing doesn't accept a raw unknown here
     logger.error(err, 'FROM NOTIFICATION HELPER')
   }
 }

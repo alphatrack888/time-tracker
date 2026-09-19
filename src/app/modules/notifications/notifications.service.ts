@@ -40,7 +40,7 @@ const readNotification = async (id: string) => {
       { new: true },
     )
     return 'Notification read successfully'
- } catch (error) {
+ } catch {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to mark notification as read')
  }
 }
@@ -49,7 +49,7 @@ const readAllNotifications = async (user: JwtPayload) => {
  try {
     await Notification.updateMany({ to: user.authId }, { isRead: true })
     return 'All notifications read successfully'
- } catch (error) {
+ } catch {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to mark all notifications as read')
  }
 }
