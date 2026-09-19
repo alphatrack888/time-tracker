@@ -207,14 +207,14 @@ class UsageTrackingService {
     }
 
     // Private helper methods (implement based on your data models)
-    private async getCurrentTruckCount(_userId: string): Promise<number> {
+    private async getCurrentTruckCount(userId: string): Promise<number> {
         try {
-            // Replace with your actual truck counting logic
-            // const count = await Truck.countDocuments({ ownerId: userId, status: 'active' })
-            // return count
-
-            // Placeholder implementation
-            return 0
+            const { Truck } = await import('../truck/truck.model')
+            const count = await Truck.countDocuments({
+                company: new Types.ObjectId(userId),
+                status: { $ne: 'inactive' },
+            })
+            return count
         } catch (error) {
             logger.error('Error getting truck count:', error)
             return 0
