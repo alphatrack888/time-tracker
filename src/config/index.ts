@@ -35,10 +35,7 @@ export default {
   },
   email: {
     from: process.env.EMAIL_FROM,
-    user: process.env.EMAIL_USER,
-    port: process.env.EMAIL_PORT,
-    host: process.env.EMAIL_HOST,
-    pass: process.env.EMAIL_PASS,
+    resend_api_key: process.env.RESEND_API_KEY,
   },
   cloudinary: {
     cloudinary_name: process.env.CLOUDINARY_NAME,
