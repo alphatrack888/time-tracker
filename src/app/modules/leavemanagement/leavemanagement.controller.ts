@@ -34,7 +34,7 @@ import { leavemanagementFilterables } from './leavemanagement.constants';
   
   const getSingleLeavemanagement = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = await LeavemanagementServices.getSingleLeavemanagement(id);
+    const result = await LeavemanagementServices.getSingleLeavemanagement(req.user!, id);
     
     sendResponse(res, {
       statusCode: StatusCodes.OK,

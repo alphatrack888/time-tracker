@@ -8,6 +8,8 @@ import { JwtPayload } from "jsonwebtoken"
 import { AnalyticsQuery, DailyBreakdown, LocationPoint, LocationQuery, WorkingStats } from "./dashboard.interface"
 import moment from 'moment';
 import { TimeSession } from "../timetracker/timetracker.model"
+import ApiError from "../../../errors/ApiError"
+import { StatusCodes } from "http-status-codes"
 
 const getSystemAdminGeneralStats = async() =>{  
     const [totalCompany, totalEmployees, totalRevenues] = await Promise.all([
@@ -118,8 +120,8 @@ const totalCompanyMonthly = async(year?: number) => {
 const getCompanyGeneralStats = async(user:JwtPayload) => {
     const [totalEmployees, totalProjects, totalCompletedProjects] = await Promise.all([
         User.countDocuments({role: USER_ROLES.EMPLOYEES, company:user.authId}),
-        Project.countDocuments({}),
-        Project.countDocuments({status: 'completed'}),
+        Project.countDocuments({company: user.authId}),
+        Project.countDocuments({company: user.authId, status: 'completed'}),
 
     ])
     return {
@@ -224,7 +226,8 @@ const calculateWorkingHours = (sessions: any[]): WorkingStats => {
 
   sessions.forEach(session => {
     if (session.totalTime) {
-      totalWorkingMinutes += session.totalTime;
+      // session.totalTime is stored in milliseconds (see timetracker.model.ts) — convert to minutes.
+      totalWorkingMinutes += session.totalTime / (1000 * 60);
     }
 
     // Calculate break time from pauses
@@ -407,8 +410,14 @@ const generateDailyBreakdown = (
 /**
  * Main service function for comprehensive time analytics
  */
-export const getTimeAnalytics = async (query: AnalyticsQuery) => {
+export const getTimeAnalytics = async (user: JwtPayload, query: AnalyticsQuery) => {
   const { userId, compare = 'previous', includeChart = false } = query;
+
+  // Only the calling company's own employee's data may be viewed here.
+  const targetEmployee = await User.findOne({ _id: userId, company: user.authId });
+  if (!targetEmployee) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this employee\'s data');
+  }
 
   // Get current period dates
   const currentRange = getDateRange(query);
@@ -537,8 +546,14 @@ export const getTimeAnalytics = async (query: AnalyticsQuery) => {
 /**
  * Get employee locations for admin
  */
-export const getEmployeeLocations = async (query: LocationQuery) => {
+export const getEmployeeLocations = async (user: JwtPayload, query: LocationQuery) => {
   const { userId, actions } = query;
+
+  // Only the calling company's own employee's data may be viewed here.
+  const targetEmployee = await User.findOne({ _id: userId, company: user.authId });
+  if (!targetEmployee) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this employee\'s data');
+  }
 
   // Get date range
   const dateRange = getDateRange(query);

@@ -114,7 +114,18 @@ const getSingleProject = async (user: JwtPayload, id: string) => {
       select: 'name email',
     })
   }
-  const result = await Project.findById(id).populate(populate).lean();
+
+  // Same scoping convention as getAllProjects: COMPANY only sees their own
+  // projects, EMPLOYEES only sees projects they're assigned to.
+  const andConditions: Record<string, unknown>[] = [{ _id: id }]
+  if(user.role === USER_ROLES.EMPLOYEES){
+    andConditions.push({employees: {$in: [user.authId]}})
+  }
+  if(user.role === USER_ROLES.COMPANY){
+    andConditions.push({company: user.authId})
+  }
+
+  const result = await Project.findOne({ $and: andConditions }).populate(populate).lean();
   if(!result){
     throw new ApiError(
       StatusCodes.NOT_FOUND,
@@ -168,10 +179,12 @@ const updateProject = async (
     const endDate = payload.endDate ? new Date(payload.endDate) : result.endDate;
     
     if (startDate && endDate) {
-      // Calculate duration in milliseconds
-      payload.duration = endDate.getTime() - startDate.getTime();
-      // Calculate project time in days (fixed the calculation)
-      payload.projectTime = payload.duration / (1000 * 60 * 60 );
+      // duration/projectTime are stored in hours everywhere else (see
+      // createProject above) — this used to store raw milliseconds here,
+      // ~3.6 million times too large.
+      const durationHours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+      payload.duration = durationHours;
+      payload.projectTime = durationHours;
     }
   }
 

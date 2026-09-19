@@ -26,17 +26,18 @@ const getAllGallerys = async (user: JwtPayload) => {
   return result || [];
 };
 
-const getSingleGallery = async (id: string) => {
-  const result = await Gallery.findById(id);
+const getSingleGallery = async (user: JwtPayload, id: string) => {
+  const result = await Gallery.findOne({ _id: id, user: user.authId });
   return result;
 };
 
 const updateGallery = async (
+  user: JwtPayload,
   id: string,
   payload: Partial<IGallery>,
 ) => {
-  const result = await Gallery.findByIdAndUpdate(
-    id,
+  const result = await Gallery.findOneAndUpdate(
+    { _id: id, user: user.authId },
     { $set: payload },
     {
       new: true,
@@ -45,8 +46,8 @@ const updateGallery = async (
   return result;
 };
 
-const deleteImages = async (ids: string[]) => {
-  const result = await Gallery.deleteMany({ _id: { $in: ids } });
+const deleteImages = async (user: JwtPayload, ids: string[]) => {
+  const result = await Gallery.deleteMany({ _id: { $in: ids }, user: user.authId });
   if (!result.deletedCount)
     throw new ApiError(
       StatusCodes.BAD_REQUEST,

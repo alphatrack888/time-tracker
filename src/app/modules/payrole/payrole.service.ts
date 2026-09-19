@@ -57,8 +57,20 @@ const getAllPayroles = async (user: JwtPayload, filterables: IPayroleFilterables
   return result;
 };
 
-const getSinglePayrole = async (id: string) => {
-  const result = await Payrole.findById(id);
+// COMPANY may only touch payroles belonging to their own company; EMPLOYEES
+// may only touch payroles that are their own — same convention as getAllPayroles.
+const ownershipFilter = (user: JwtPayload, id: string) => {
+  const filter: Record<string, unknown> = { _id: id }
+  if (user.role === USER_ROLES.COMPANY) {
+    filter.company = new mongoose.Types.ObjectId(user.authId)
+  } else if (user.role === USER_ROLES.EMPLOYEES) {
+    filter.employee = new mongoose.Types.ObjectId(user.authId)
+  }
+  return filter
+}
+
+const getSinglePayrole = async (user: JwtPayload, id: string) => {
+  const result = await Payrole.findOne(ownershipFilter(user, id));
   if(!result) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
@@ -69,11 +81,12 @@ const getSinglePayrole = async (id: string) => {
 };
 
 const updatePayrole = async (
+  user: JwtPayload,
   id: string,
   payload: Partial<IPayrole>,
 ) => {
-  const result = await Payrole.findByIdAndUpdate(
-    id,
+  const result = await Payrole.findOneAndUpdate(
+    ownershipFilter(user, id),
     { $set: payload },
     {
       new: true,
@@ -88,8 +101,8 @@ const updatePayrole = async (
   return "Payrole updated successfully";
 };
 
-const deletePayrole = async (id: string) => {
-  const result = await Payrole.findByIdAndDelete(id);
+const deletePayrole = async (user: JwtPayload, id: string) => {
+  const result = await Payrole.findOneAndDelete(ownershipFilter(user, id));
   if(!result) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,

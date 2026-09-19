@@ -37,7 +37,10 @@ const getPlanById = catchAsync(async (req: Request, res: Response) => {
 // Check trial eligibility
 const checkTrialEligibility = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload
-  const userId = req.params.userId || user.authId?.toString()
+  // This route only allows COMPANY (no ADMIN/SUPER_ADMIN), so there is no
+  // legitimate case for checking anyone else's eligibility — always use the
+  // caller's own id, never the client-suppliable :userId param.
+  const userId = user.authId?.toString()
 
   const trialInfo = await subscriptionService.checkTrialEligibility(userId!)
 

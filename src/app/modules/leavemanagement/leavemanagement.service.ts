@@ -14,6 +14,10 @@ const createLeavemanagement = async (
   payload: ILeavemanagement,
 ) => {
   payload.user = user.authId;
+  // Derived from the employee's own JWT, never trusted from the client body
+  // — otherwise an employee could submit a leave request against a company
+  // that isn't theirs.
+  payload.company = user.company;
   payload.from = new Date(payload.from);
   payload.to = new Date(payload.to);
   const availableLeaveBalances = await getAvailableLeaveBalance(user, payload.company.toString())
@@ -134,8 +138,11 @@ const getAllLeavemanagements = async (user: JwtPayload, filters: ILeavemanagemen
   return result;
 };
 
-const getSingleLeavemanagement = async (id: string) => {
-  const result = await Leavemanagement.findById(id);
+const getSingleLeavemanagement = async (user: JwtPayload, id: string) => {
+  const filter = user.role === USER_ROLES.COMPANY
+    ? { _id: id, company: user.authId }
+    : { _id: id, user: user.authId }
+  const result = await Leavemanagement.findOne(filter);
   if(!result) throw new ApiError(StatusCodes.NOT_FOUND, 'Requested leave request not found, please try again')
   return result;
 };
@@ -146,8 +153,8 @@ const updateLeavemanagement = async (
   payload: Partial<ILeavemanagement>,
 ) => {
 
-  const result = await Leavemanagement.findByIdAndUpdate(
-    id,
+  const result = await Leavemanagement.findOneAndUpdate(
+    { _id: id, company: user.authId },
     { $set: payload },
     {
       new: true,
@@ -185,6 +192,7 @@ const getAvailableLeaveBalance = async (user: JwtPayload, company: string) => {
   const [leavemanagements, leaveBalance] = await Promise.all([
     Leavemanagement.find({
       user: user.authId,
+      company: new Types.ObjectId(company),
       status: 'approved',
     }),
     Leavebalance.findOne({

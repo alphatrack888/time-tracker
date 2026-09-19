@@ -118,7 +118,7 @@ const getCompanyGeneralStats = catchAsync(async (req: Request, res: Response) =>
     includeChart: includeChart === 'true'
   };
 
-  const analytics = await getTimeAnalytics(query);
+  const analytics = await getTimeAnalytics(req.user!, query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -148,7 +148,7 @@ const getEmployeeLocationsController = catchAsync(async (req: Request, res: Resp
     actions: actions ? (actions as string).split(',') : undefined
   };
 
-  const locationData = await dashboardService.getEmployeeLocations(query);
+  const locationData = await dashboardService.getEmployeeLocations(req.user!, query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

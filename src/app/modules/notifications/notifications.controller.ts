@@ -18,7 +18,7 @@ const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
 })
 const updateNotification = catchAsync(async (req: Request, res: Response) => {
   const notificationId = req.params.id
-  const result = await NotificationServices.readNotification(notificationId)
+  const result = await NotificationServices.readNotification(req.user!, notificationId)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,

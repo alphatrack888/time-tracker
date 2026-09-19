@@ -9,6 +9,7 @@ import { paginationHelper } from '../../../helpers/paginationHelper';
 import { Project } from '../project/project.model';
 import { User } from '../user/user.model';
 import { generateComprehensiveTimesheetReport } from '../../../helpers/pdfHelper';
+import { USER_ROLES } from '../../../enum/user';
 
 const startTimer = async (user: JwtPayload, payload: { project?: string; location?: { lat: number; lng: number } }) => {
   const now = new Date();
@@ -178,9 +179,20 @@ const getSessionLocations = async (user: JwtPayload, sessionId: string) => {
   return session.locations;
 };
 
-const getLocationsByDate = async (filters: { date: string; project?: string; employee?: string }, pagination: IPaginationOptions) => {
+const getLocationsByDate = async (user: JwtPayload, filters: { date: string; project?: string; employee?: string }, pagination: IPaginationOptions) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(pagination);
-  const query: any = { date: filters.date };
+
+  // Only the calling company's own employees' locations are visible here.
+  const companyEmployees = await User.find({ company: user.authId }).select('_id').lean();
+  const companyEmployeeIds = companyEmployees.map((e) => e._id.toString());
+
+  const query: any = { date: filters.date, user: { $in: companyEmployeeIds } };
+  if (filters.employee) {
+    if (!companyEmployeeIds.includes(filters.employee)) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this employee\'s locations');
+    }
+    query.user = new Types.ObjectId(filters.employee);
+  }
   if (filters.project) query.project = new Types.ObjectId(filters.project);
 
   const [sessions, total] = await Promise.all([
@@ -223,7 +235,22 @@ export const TimeTrackerService = {
   ) => {
 
     console.log('generateMonthlyPdfReport', opts);
-    const employeeId = new Types.ObjectId(opts.employee || (user.authId as string));
+
+    // EMPLOYEES may only ever generate their own report — the `employee`
+    // param is ignored for them rather than trusted. COMPANY may generate a
+    // report for any employee, but only one that actually belongs to them.
+    let targetEmployeeId = user.authId as string;
+    if (opts.employee && user.role !== USER_ROLES.EMPLOYEES) {
+      targetEmployeeId = opts.employee;
+    }
+    if (user.role === USER_ROLES.COMPANY) {
+      const targetEmployee = await User.findOne({ _id: targetEmployeeId, company: user.authId });
+      if (!targetEmployee) {
+        throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this employee\'s report');
+      }
+    }
+
+    const employeeId = new Types.ObjectId(targetEmployeeId);
     const month = opts.month; // YYYY-MM
 
     // Fetch sessions for the month

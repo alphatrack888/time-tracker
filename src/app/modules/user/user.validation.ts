@@ -28,7 +28,6 @@ const updateUserZodSchema = z.object({
     phone: z.string().optional(),
     address: z.string().optional(),
     designation: z.string().optional(),
-    company: z.string().optional(),
     manualBreak: z.boolean().optional(),
     images: z.array(z.string()).optional(),
   }),
