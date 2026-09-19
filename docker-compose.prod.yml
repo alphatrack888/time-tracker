@@ -7,15 +7,3 @@ services:
       target: prod
     image: shfayetwt/time-tracker-backend:latest
     restart: always
-    # Joins the shared, server-level Caddy's network (created by the
-    # separate caddy-proxy/ stack — must already be running on the server
-    # before this stack starts, since it's declared external here) IN
-    # ADDITION to this project's own default network, which is what lets
-    # `app` still reach `mongo` by service name.
-    networks:
-      - default
-      - web
-
-networks:
-  web:
-    external: true
