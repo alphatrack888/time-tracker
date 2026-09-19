@@ -35,7 +35,7 @@ jobs:
       - name: Type-check
         run: npm run build
 
-      - name: Lint (non-blocking — 166 pre-existing issues not yet cleaned up)
+      - name: Lint (non-blocking — 58 pre-existing `any` issues not yet cleaned up)
         run: npm run lint:check
         continue-on-error: true
 
@@ -78,13 +78,50 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Pull the new image and restart the stack
+      # Rewrites .env on the server from individual GitHub secrets on every
+      # deploy — adding/changing an env var going forward means updating (or
+      # adding) its secret here and in the list below, never SSHing in to
+      # hand-edit the file. The heredoc uses a QUOTED terminator ('EOF'), so
+      # the shell treats every secret's value as literal text — no `$`,
+      # backtick, or other expansion, even if a value contains one.
+      - name: Write .env and deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: deploy
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
+            cat > ~/time-tracker-docker/.env << 'EOF'
+            NODE_ENV=production
+            IP_ADDRESS=0.0.0.0
+            PORT=5055
+            MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_INITDB_ROOT_USERNAME }}
+            MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
+            BCRYPT_SALT_ROUNDS=${{ secrets.BCRYPT_SALT_ROUNDS }}
+            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            EMAIL_PORT=${{ secrets.EMAIL_PORT }}
+            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRE_IN=${{ secrets.JWT_EXPIRE_IN }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_REFRESH_EXPIRES_IN=${{ secrets.JWT_REFRESH_EXPIRES_IN }}
+            TEMP_JWT_SECRET=${{ secrets.TEMP_JWT_SECRET }}
+            TEMP_JWT_EXPIRE_IN=${{ secrets.TEMP_JWT_EXPIRE_IN }}
+            CLOUDINARY_NAME=${{ secrets.CLOUDINARY_NAME }}
+            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+            CLOUDINARY_SECRET=${{ secrets.CLOUDINARY_SECRET }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
+            SUPER_ADMIN_EMAIL=${{ secrets.SUPER_ADMIN_EMAIL }}
+            SUPER_ADMIN_PASSWORD=${{ secrets.SUPER_ADMIN_PASSWORD }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            FIREBASE_SERVICE_ACCOUNT_BASE64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            EOF
             cd ~/time-tracker-docker
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
