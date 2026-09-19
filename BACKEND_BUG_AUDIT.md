@@ -7,7 +7,7 @@ separately and prioritized by you.
 
 **Summary: 15 HIGH, 8 MEDIUM, 3 LOW severity findings.**
 
-**Status: all 15 HIGH and all 8 MEDIUM findings fixed and verified (`npx tsc --noEmit` + `npm run lint:check` clean, no new issues introduced). Remaining LOW items (#25, #27) are a stubbed function and unused dead code, not active bugs — left as-is unless you want them addressed too.**
+**Status: all 15 HIGH, all 8 MEDIUM, and #27 of the LOW findings fixed and verified (`npx tsc --noEmit` + `npm run lint:check` clean, no new issues introduced). #25 (truck-limit enforcement) intentionally deferred pending a product decision — see below.**
 
 - HIGH = cross-tenant data leakage, data corruption, or privilege escalation
 - MEDIUM = wrong numbers/values returned, but contained to the requester's own data
@@ -141,13 +141,14 @@ separately and prioritized by you.
 - `src/app/modules/leavemanagement/leavemanagement.service.ts:183-207` — sums a user's approved leave across **all** companies. Only manifests via bug #15 or a real employer change.
 
 ### 25. `usage-tracking.service.ts` truck/user counts are stubbed
-- Returns hardcoded placeholder values, not real data. Not a regression — seemingly never wired up.
+- **User count: fixed.** `getCurrentUserCount` now actually counts `User.countDocuments({company: userId, status: {$ne: DELETED}}) + 1` instead of a hardcoded `1` — this was a live billing bug: `canAddUser`'s plan-limit check (`currentUserCount >= plan.maxUsers`) could never actually block anyone from exceeding their plan's user limit.
+- **Truck count: deferred.** Subscription plans genuinely define a `maxTrucks` limit per tier (1/3/10/50/999 — see `subscription.seed.ts`), but there is no `Truck` model anywhere in the app, so `canAddTruck`'s limit check has silently never enforced anything. This isn't a simple bug fix — it needs a product decision on what a "truck" should map to (a new model, a field on Company, or removing truck-limiting from the plan logic entirely). Flagged for you; not fixed.
 
 ### 26. Gallery `getSingleGallery`/`updateGallery` unscoped but currently unreachable
-- Routes are commented out in `gallery.route.ts:13-14`. Fix before ever re-enabling.
+- **Fixed** alongside #8 (same file) while already in there — both now scope by `user: user.authId`, matching `getAllGallerys`.
 
 ### 27. `cacheMiddleware.ts` builds cache keys without user scoping
-- Would leak cross-user responses if ever applied to a per-user route — currently dead code, not wired into any route.
+- **Fixed by deletion.** Confirmed via search that it was never imported anywhere outside itself — genuinely dead code. Removed entirely rather than patched, consistent with how other unused code was handled earlier in this project. Note: the `CacheService` it wrapped is unaffected and remains in active use elsewhere (review, public modules, rate limiter).
 
 ---
 
