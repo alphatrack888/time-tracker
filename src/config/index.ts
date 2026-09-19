@@ -9,12 +9,8 @@ export default {
 
   stripe: {
     secret_key: process.env.STRIPE_SECRET_KEY,
-    account_id: process.env.STRIPE_ACCOUNT_ID,
     webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
-
   },
-
-
 
   node_env: process.env.NODE_ENV,
   port: process.env.PORT,
@@ -37,11 +33,6 @@ export default {
     temp_jwt_secret: process.env.TEMP_JWT_SECRET,
     temp_jwt_expire_in: process.env.TEMP_JWT_EXPIRE_IN,
   },
-  application_fee: process.env.APPLICATION_FEE,
-  instant_transfer_fee: process.env.INSTANT_TRANSFER_FEE,
-  openAi_api_key: process.env.OPENAI_API_KEY,
-
-  webhook_secret: process.env.WEBHOOK_SECRET,
   email: {
     from: process.env.EMAIL_FROM,
     user: process.env.EMAIL_USER,
