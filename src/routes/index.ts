@@ -15,6 +15,8 @@ import { SubscriptionRoutes } from '../app/modules/subscription/subscription.rou
 import { dashboardRoutes } from '../app/modules/dashboard/dashboard.route'
 import { GalleryRoutes } from '../app/modules/gallery/gallery.route'
 import { TruckRoutes } from '../app/modules/truck/truck.route'
+import { DeviceTokenRoutes } from '../app/modules/devicetoken/devicetoken.route'
+import { NotificationPreferenceRoutes } from '../app/modules/notificationpreferences/notificationpreferences.route'
 
 
 
@@ -36,7 +38,9 @@ const apiRoutes: { path: string; route: Router }[] = [
   { path: '/timetracker', route: TimeTrackerRoutes }, 
   { path: '/dashboard', route: dashboardRoutes },
   { path: '/gallery', route: GalleryRoutes },
-  { path: '/truck', route: TruckRoutes }]
+  { path: '/truck', route: TruckRoutes },
+  { path: '/devices', route: DeviceTokenRoutes },
+  { path: '/notification-preferences', route: NotificationPreferenceRoutes }]
 
 apiRoutes.forEach(route => {
   router.use(route.path, route.route)

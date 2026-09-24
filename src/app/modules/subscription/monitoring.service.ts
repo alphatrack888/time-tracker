@@ -3,6 +3,14 @@ import { Subscription } from './subscription.model'
 import { SubscriptionPlan } from './subscription-plan.model'
 import { stripeService } from './stripe.service'
 import Stripe from 'stripe'
+// Called from cron (already scheduled as of Phase 0), not a live HTTP
+// request — awaiting sendNotification directly (rather than the
+// fire-and-forget dispatchNotification used by request-driven triggers)
+// gives this sweep deterministic completion: it can log/return once
+// notifications have actually been created, not just kicked off.
+import { sendNotification } from '../../../helpers/notificationHelper'
+import { UserServices } from '../user/user.service'
+import { IUser } from '../user/user.interface'
 
 class MonitoringService {
     // Monitor subscription health
@@ -55,11 +63,23 @@ class MonitoringService {
                 logger.warn(`HIGH PRIORITY: ${failedPayments.length} subscriptions with multiple payment failures`)
 
                 // Send alerts to admin
+                const systemSenderId = await UserServices.getSystemSenderId()
                 for (const subscription of failedPayments) {
                     logger.error(`PAYMENT FAILURE ALERT: Subscription ${subscription._id} has ${subscription.paymentFailureCount} failed attempts`)
 
-                    // You could integrate with your notification service here
-                    // await notificationService.sendPaymentFailureAlert(subscription)
+                    if (systemSenderId) {
+                        const companyAdmin = subscription.userId as unknown as IUser
+                        await sendNotification({
+                            from: systemSenderId,
+                            to: companyAdmin._id.toString(),
+                            kind: 'subscriptionPaymentFailure',
+                            data: { failureCount: subscription.paymentFailureCount },
+                            // Keyed on the failure count, not just the subscription id, so
+                            // a fresh failure re-notifies but re-running this hourly sweep
+                            // while the count is unchanged does not.
+                            idempotencyKey: `subscription:${subscription._id.toString()}:paymentFailure:${subscription.paymentFailureCount}`,
+                        })
+                    }
                 }
             }
         } catch (error) {
@@ -82,11 +102,24 @@ class MonitoringService {
                 logger.info(`${trialEndingSoon.length} trials ending in the next 3 days`)
 
                 // Send conversion reminders
+                const systemSenderId = await UserServices.getSystemSenderId()
                 for (const subscription of trialEndingSoon) {
                     logger.info(`Trial ending soon: ${subscription._id}`)
 
-                    // You could send reminder emails here
-                    // await emailService.sendTrialEndingReminder(subscription)
+                    if (systemSenderId && subscription.trialEnd) {
+                        const companyAdmin = subscription.userId as unknown as IUser
+                        const trialEndDate = subscription.trialEnd.toISOString().slice(0, 10)
+                        await sendNotification({
+                            from: systemSenderId,
+                            to: companyAdmin._id.toString(),
+                            kind: 'subscriptionTrialEnding',
+                            data: { trialEndDate: subscription.trialEnd.toDateString() },
+                            // Keyed on the trial's own end date rather than "now", so this
+                            // fires once for this trial period regardless of how many
+                            // times the 4-hourly sweep runs during the 3-day window.
+                            idempotencyKey: `subscription:${subscription._id.toString()}:trialEndingReminder:${trialEndDate}`,
+                        })
+                    }
                 }
             }
         } catch (error) {

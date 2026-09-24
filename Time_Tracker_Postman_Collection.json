@@ -406,7 +406,14 @@
             "body": {
               "mode": "formdata",
               "raw": "",
-              "formdata": []
+              "formdata": [
+                {
+                  "key": "data",
+                  "value": "{\"name\": \"\", \"timezone\": \"America/New_York\"}",
+                  "type": "text",
+                  "description": "timezone (Phase 6): a real IANA identifier, e.g. America/New_York — mainly meaningful for COMPANY accounts (used by the daily overtime sweep)"
+                }
+              ]
             }
           },
           "response": []
@@ -814,7 +821,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/timetracker/reports/monthly?month=&employee=&project=&template=",
+              "raw": "{{base_url}}/timetracker/reports/monthly?month=&employee=&project=&template=&format=",
               "host": [
                 "{{base_url}}"
               ],
@@ -839,6 +846,163 @@
                 {
                   "key": "template",
                   "value": ""
+                },
+                {
+                  "key": "format",
+                  "value": "",
+                  "description": "pdf (default) or excel"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Attendance Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/reports/attendance?startDate=&endDate=&employee=&project=&format=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "reports",
+                "attendance"
+              ],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": ""
+                },
+                {
+                  "key": "endDate",
+                  "value": ""
+                },
+                {
+                  "key": "employee",
+                  "value": "",
+                  "description": "required for every role except employee"
+                },
+                {
+                  "key": "project",
+                  "value": ""
+                },
+                {
+                  "key": "format",
+                  "value": "",
+                  "description": "pdf (default) or excel"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Request Attendance Report (Async)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"\",\n  \"endDate\": \"\",\n  \"format\": \"pdf\",\n  \"company\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "COMPANY: always their own company, `company` in the body is ignored. ADMIN/SUPER_ADMIN: `company` given scopes to one company (404 if it doesn't exist); omitted means every company (cross-company).",
+            "url": {
+              "raw": "{{base_url}}/timetracker/reports/attendance/async",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "reports",
+                "attendance",
+                "async"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Report Job Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/reports/jobs/:jobId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "reports",
+                "jobs",
+                ":jobId"
+              ],
+              "variable": [
+                {
+                  "key": "jobId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List My Report Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetracker/reports/jobs?page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetracker",
+                "reports",
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
                 }
               ]
             }
@@ -2007,14 +2171,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/notifications/:id/read",
+              "raw": "{{base_url}}/notifications/:id",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "notifications",
-                ":id",
-                "read"
+                ":id"
               ],
               "query": []
             }
@@ -2033,21 +2196,82 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/notifications/mark-all-read",
+              "raw": "{{base_url}}/notifications/all",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "notifications",
-                "mark-all-read"
+                "all"
               ],
               "query": []
             }
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Device Tokens",
+      "item": [
+        {
+          "name": "Register Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"\",\n  \"platform\": \"android\",\n  \"appVersion\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/devices/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "devices",
+                "register"
+              ]
+            }
+          },
+          "response": []
         },
         {
-          "name": "Delete Notification",
+          "name": "List My Devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/devices",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "devices"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deregister Device",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2058,15 +2282,80 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/notifications/:id",
+              "raw": "{{base_url}}/devices/:token",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "notifications",
-                ":id"
+                "devices",
+                ":token"
               ],
-              "query": []
+              "variable": [
+                {
+                  "key": "token",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notification Preferences",
+      "item": [
+        {
+          "name": "Get My Preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notification-preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notification-preferences"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pushEnabled\": true,\n  \"categories\": {\n    \"leave\": true\n  },\n  \"digestMode\": \"realtime\",\n  \"language\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/notification-preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notification-preferences"
+              ]
             }
           },
           "response": []

@@ -68,7 +68,25 @@ const userSchema = new Schema<IUser, UserModel>(
     designation: {
       type: String,
     },
+    // @deprecated — superseded by the DeviceToken collection (multi-device).
+    // No longer written to; kept only so a legacy value already stored for
+    // a pre-migration user doesn't hard-fail a read. `select: false` (Phase
+    // 14 audit) because nothing legitimately needs it back in a response,
+    // and without this it leaked through every endpoint that returns a
+    // full User document — including `getSingleUser`/`generalGetAllUsers`,
+    // where an admin or company viewing someone else's profile would see
+    // a stale FCM/APNs token that has nothing to do with them requesting
+    // that profile. Same pattern already used for `password` just above.
     deviceToken: {
+      type: String,
+      select: false,
+    },
+    language: {
+      type: String,
+      enum: ['en', 'de'],
+    },
+    // IANA timezone identifier — see user.interface.ts for how this is used.
+    timezone: {
       type: String,
     },
     // Subscription-related fields

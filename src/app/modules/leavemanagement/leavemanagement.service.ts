@@ -8,6 +8,11 @@ import { Leavebalance } from '../leavebalance/leavebalance.model';
 
 import { Types } from 'mongoose';
 import { dispatchNotification } from '../../../helpers/appEvents';
+import { logger } from '../../../shared/logger';
+
+// Below this many remaining days for a leave type, the employee gets a
+// "running low" notification when a request against that type is approved.
+const LOW_LEAVE_BALANCE_THRESHOLD_DAYS = 2;
 
 const createLeavemanagement = async (
   user: JwtPayload,
@@ -40,14 +45,17 @@ const createLeavemanagement = async (
       'Failed to create Leavemanagement',
     );
 
-    const notificatonData = {
+    dispatchNotification({
       from: user.id,
-      to: payload.company,
-      title: `New Leave Request from ${user.name}`,
-      body: `${user.name} has requested a leave from ${payload.from.toDateString()} to ${payload.to.toDateString()}`,
-    }
-    
-    dispatchNotification({ from: notificatonData.from, to: notificatonData.to.toString(), title: notificatonData.title, body: notificatonData.body })
+      to: payload.company.toString(),
+      kind: 'leaveRequestSubmitted',
+      data: {
+        employeeName: user.name,
+        from: payload.from.toDateString(),
+        to: payload.to.toDateString(),
+      },
+      idempotencyKey: `leaveRequest:${result._id.toString()}:submitted`,
+    })
   return result;
 };
 
@@ -162,16 +170,31 @@ const updateLeavemanagement = async (
   );
   if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update leave request, please try again.')
     console.log(result.user, result)
-    const notificatonData = {
+    dispatchNotification({
       from: user.authId,
-      to: result.user,
-      title: `Your leave request has been ${payload.status}`,
-      body: `Your leave request from ${result.from.toDateString()} to ${result.to.toDateString()} has been ${payload.status}`,  
+      to: result.user.toString(),
+      kind: 'leaveRequestStatusChanged',
+      data: {
+        status: payload.status,
+        from: result.from.toDateString(),
+        to: result.to.toDateString(),
+      },
+      idempotencyKey: `leaveRequest:${id}:${payload.status}`,
+    })
+
+    // A separate, additional heads-up when this approval leaves the
+    // employee's balance for that leave type low or exhausted. Only makes
+    // sense on approval — rejection doesn't consume any balance. The balance
+    // lookup itself is awaited (cheap, and worth actually seeing fail if it
+    // does); the resulting dispatchNotification call stays fire-and-forget,
+    // consistent with every other trigger in this file.
+    if (payload.status === 'approved') {
+      try {
+        await notifyIfLeaveBalanceLow(user, result, id)
+      } catch (err) {
+        logger.error(`leaveBalance:low-check-failed leaveRequestId=${id}`, err)
+      }
     }
-    
-    dispatchNotification({ from: notificatonData.from, to: notificatonData.to.toString(), title: notificatonData.title, body: notificatonData.body })
-
-
 
   return 'Leave request updated successfully.';
 };
@@ -186,6 +209,35 @@ const deleteLeavemanagement = async (user: JwtPayload, id: string) => {
   return 'Leave request deleted successfully';
 };
 
+
+/**
+ * Fires an additional notification to the employee when approving this
+ * leave request leaves their balance for that leave type at or below
+ * LOW_LEAVE_BALANCE_THRESHOLD_DAYS (including exhausted/negative). Kept
+ * separate from the "your leave was approved" notification above — this is
+ * conceptually a different event (a balance crossing a threshold), with its
+ * own idempotency key tied to the specific request that caused it.
+ */
+const notifyIfLeaveBalanceLow = async (
+  user: JwtPayload,
+  result: ILeavemanagement,
+  leaveRequestId: string,
+) => {
+  const balances = await getAvailableLeaveBalance({ authId: result.user.toString() } as JwtPayload, user.authId)
+  const balanceKey = `${result.type}LeaveLeft` as keyof typeof balances
+  const remaining = balances[balanceKey]
+
+  if (typeof remaining !== 'number' || remaining > LOW_LEAVE_BALANCE_THRESHOLD_DAYS) return
+
+  const exhausted = remaining <= 0
+  dispatchNotification({
+    from: user.authId,
+    to: result.user.toString(),
+    kind: exhausted ? 'leaveBalanceExhausted' : 'leaveBalanceLow',
+    data: { leaveType: result.type, remaining },
+    idempotencyKey: `leaveBalance:${result.user.toString()}:${result.type}:lowAfter:${leaveRequestId}`,
+  })
+}
 
 const getAvailableLeaveBalance = async (user: JwtPayload, company: string) => {
   

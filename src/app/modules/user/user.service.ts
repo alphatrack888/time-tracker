@@ -67,6 +67,21 @@ const createAdmin = async (): Promise<Partial<IUser> | null> => {
   return result[0]
 }
 
+/**
+ * The seeded super-admin account (see createAdmin, always present from
+ * server boot), used as the `from` sender for system-generated
+ * notifications — cron/scheduled alerts, subscription/billing warnings,
+ * overtime/attendance reminders — where there's no acting human user to
+ * attribute the notification to.
+ */
+const getSystemSenderId = async (): Promise<string | null> => {
+  const systemUser = await User.findOne({
+    email: config.super_admin.email,
+    role: USER_ROLES.SUPER_ADMIN,
+  }).select('_id').lean()
+  return systemUser?._id.toString() ?? null
+}
+
 export const generalGetAllUsers = async(user:JwtPayload, filter:IUserFilter, paginationOptions:IPaginationOptions)=>{
   const{page,limit,skip,sortBy,sortOrder} = paginationHelper.calculatePagination(paginationOptions)
   const {latitude, longitude, distance, ...restFilters} = filter
@@ -363,5 +378,6 @@ export const UserServices = {
   getTodaysBreakPeriods,
   deleteUser,
   adminUpdateUser,
+  getSystemSenderId,
 }
 

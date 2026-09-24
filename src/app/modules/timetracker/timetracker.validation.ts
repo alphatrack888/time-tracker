@@ -77,6 +77,44 @@ const getMonthlyReportZodSchema = z.object({
     employee: z.string().optional(),
     project: z.string().optional(),
     template: z.enum(['default', 'timesheet', 'comprehensive']).optional(),
+    // Was accepted and used by the controller without ever being validated
+    // here — tightened while adding `format` alongside it.
+    lang: z.enum(['en', 'de']).optional(),
+    format: z.enum(['pdf', 'excel']).optional(),
+  }),
+});
+
+const dateStringSchema = (message: string) => z.string({ required_error: message }).regex(/^\d{4}-\d{2}-\d{2}$/, `${message} must be in YYYY-MM-DD format`);
+
+const getAttendanceReportZodSchema = z.object({
+  query: z.object({
+    startDate: dateStringSchema('startDate is required'),
+    endDate: dateStringSchema('endDate is required'),
+    employee: z.string().optional(),
+    project: z.string().optional(),
+    format: z.enum(['pdf', 'excel']).optional(),
+    lang: z.enum(['en', 'de']).optional(),
+  }),
+});
+
+const requestAsyncAttendanceReportZodSchema = z.object({
+  body: z.object({
+    startDate: dateStringSchema('startDate is required'),
+    endDate: dateStringSchema('endDate is required'),
+    project: z.string().optional(),
+    format: z.enum(['pdf', 'excel']).optional(),
+    lang: z.enum(['en', 'de']).optional(),
+    // ADMIN/SUPER_ADMIN only — scopes the report to one company. Ignored
+    // for COMPANY requesters (see reportjob.service.ts), so no role check
+    // is needed here.
+    company: z.string().optional(),
+  }),
+});
+
+const listReportJobsZodSchema = z.object({
+  query: z.object({
+    page: z.string().regex(/^\d+$/, 'page must be a positive integer').optional(),
+    limit: z.string().regex(/^\d+$/, 'limit must be a positive integer').optional(),
   }),
 });
 
@@ -90,4 +128,7 @@ export const TimeTrackerValidations = {
   getSessionLocationsZodSchema,
   getLocationsByDateZodSchema,
   getMonthlyReportZodSchema,
+  getAttendanceReportZodSchema,
+  requestAsyncAttendanceReportZodSchema,
+  listReportJobsZodSchema,
 };

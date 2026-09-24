@@ -4,7 +4,7 @@ const js = require('@eslint/js')
 const compat = new FlatCompat({ baseDirectory: __dirname, recommendedConfig: js.configs.recommended })
 
 module.exports = [
-  { ignores: ['dist/**', 'node_modules/**', 'uploads/**', 'eslint.config.js'] },
+  { ignores: ['dist/**', 'node_modules/**', 'uploads/**', 'eslint.config.js', 'jest.config.js'] },
   ...compat.extends('eslint:recommended', 'plugin:@typescript-eslint/recommended'),
   {
     rules: {

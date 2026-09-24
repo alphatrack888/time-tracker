@@ -14,7 +14,9 @@ import { AuthCommonServices, authResponse } from '../common'
 import { jwtHelper } from '../../../../helpers/jwtHelper'
 import { JwtPayload } from 'jsonwebtoken'
 import { IUser } from '../../user/user.interface'
-import { dispatchEmail } from '../../../../helpers/appEvents'
+import { dispatchEmail, dispatchNotification } from '../../../../helpers/appEvents'
+import { DeviceTokenServices } from '../../devicetoken/devicetoken.service'
+import { logger } from '../../../../shared/logger'
 
 
 
@@ -77,7 +79,23 @@ const createUser = async (user:JwtPayload,payload: IUser) => {
 
   dispatchEmail(createAccount)
 
-
+  if (payload.role === USER_ROLES.EMPLOYEES) {
+    const newEmployeeId = result._id.toString()
+    dispatchNotification({
+      from: user.authId,
+      to: newEmployeeId,
+      kind: 'employeeWelcome',
+      data: { companyName: user.name },
+      idempotencyKey: `userOnboarded:${newEmployeeId}:welcomeToEmployee`,
+    })
+    dispatchNotification({
+      from: newEmployeeId,
+      to: user.authId,
+      kind: 'newEmployeeAddedConfirmation',
+      data: { employeeName: payload.name || payload.email },
+      idempotencyKey: `userOnboarded:${newEmployeeId}:confirmationToCompany`,
+    })
+  }
 
   return "Account created successfully."
 }
@@ -370,23 +388,34 @@ const socialLogin = async (appId: string, deviceToken: string):Promise<IAuthResp
   if (!isUserExist) {
     const createdUser = await User.create({
       appId,
-      deviceToken,
       status: USER_STATUS.ACTIVE,
     })
     if (!createdUser)
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create user.')
+
+    await registerDeviceTokenSafely(createdUser._id.toString(), deviceToken)
+
     const tokens = AuthHelper.createToken(createdUser._id, createdUser.role, createdUser.name, createdUser.email)
     return authResponse(StatusCodes.OK, `Welcome ${createdUser.name} to our platform.`, createdUser.role, tokens.accessToken, tokens.refreshToken)
   } else {
-    await User.findByIdAndUpdate(isUserExist._id, {
-      $set: {
-        deviceToken,
-      },
-    })
+    await registerDeviceTokenSafely(isUserExist._id.toString(), deviceToken)
 
     const tokens = AuthHelper.createToken(isUserExist._id, isUserExist.role, isUserExist.name, isUserExist.email)
     //send token to client
     return authResponse(StatusCodes.OK, `Welcome back ${isUserExist.name}`, isUserExist.role, tokens.accessToken, tokens.refreshToken)
+  }
+}
+
+// Device push tokens now live in the DeviceToken collection (multi-device),
+// not the deprecated single-token User.deviceToken field. Social login
+// still requires a deviceToken in its payload (see auth.validation.ts), but
+// registration failure must never fail the login itself.
+const registerDeviceTokenSafely = async (userId: string, deviceToken?: string) => {
+  if (!deviceToken) return
+  try {
+    await DeviceTokenServices.registerDeviceToken({ authId: userId }, { token: deviceToken })
+  } catch (error) {
+    logger.error('Failed to register device token at social login:', error)
   }
 }
 

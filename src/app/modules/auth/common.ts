@@ -9,6 +9,8 @@ import { IAuthResponse } from './auth.interface'
 import { IUser } from '../user/user.interface'
 import { emailTemplate } from '../../../shared/emailTemplate'
 import { dispatchEmail } from '../../../helpers/appEvents'
+import { DeviceTokenServices } from '../devicetoken/devicetoken.service'
+import { logger } from '../../../shared/logger'
 
 
 const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise<IAuthResponse> => {
@@ -114,7 +116,6 @@ const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise
     isUserExist._id,
     {
       $set: {
-        deviceToken: payload.deviceToken,
         authentication: {
           restrictionLeftAt: null,
           wrongLoginAttempts: 0,
@@ -123,6 +124,24 @@ const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise
     },
     { new: true },
   )
+
+  // Device push tokens are now tracked in the DeviceToken collection
+  // (multi-device, see devicetoken module) rather than the deprecated
+  // single-token User.deviceToken field. Login still accepts a
+  // deviceToken for backwards compatibility with any client not yet
+  // calling POST /devices/register directly; registration failure must
+  // never fail the login itself.
+  if (payload.deviceToken) {
+    try {
+      await DeviceTokenServices.registerDeviceToken(
+        { authId: isUserExist._id.toString() },
+        { token: payload.deviceToken },
+      )
+    } catch (error) {
+      logger.error('Failed to register device token at login:', error)
+    }
+  }
+
   console.log(isUserExist?.company?.toString())
   const tokens = AuthHelper.createToken(isUserExist._id, isUserExist.role, isUserExist.name, isUserExist.email,undefined,isUserExist?.company?.toString())
 

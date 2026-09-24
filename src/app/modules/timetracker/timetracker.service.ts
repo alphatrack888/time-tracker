@@ -8,8 +8,15 @@ import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { Project } from '../project/project.model';
 import { User } from '../user/user.model';
-import { generateComprehensiveTimesheetReport } from '../../../helpers/pdfHelper';
+import {
+  generateComprehensiveTimesheetReport,
+  generateMonthlyTimeReportPdf,
+  generateTimesheetStyleMonthlyReport,
+} from '../../../helpers/pdfHelper';
 import { USER_ROLES } from '../../../enum/user';
+import { AttendanceReportData, AttendanceDayEntry, EmployeeAttendance } from '../../../helpers/attendanceReportTypes';
+import { generateMonthlyTimesheetExcel, generateAttendanceReportExcel } from '../../../helpers/excelHelper';
+import { generateAttendanceReportPdf } from '../../../helpers/pdfHelper';
 
 const startTimer = async (user: JwtPayload, payload: { project?: string; location?: { lat: number; lng: number } }) => {
   const now = new Date();
@@ -220,6 +227,153 @@ const getLocationsByDate = async (user: JwtPayload, filters: { date: string; pro
   };
 };
 
+// Applies to both the synchronous single-employee attendance endpoint and
+// the async company-wide one — a pathological request (decades of range)
+// shouldn't be accepted at all, background job or not.
+const MAX_ATTENDANCE_RANGE_DAYS = 366;
+
+const dateRangeStrings = (startDate: string, endDate: string): string[] => {
+  const dates: string[] = [];
+  const cursor = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+};
+
+/**
+ * Computes attendance data for one or more employees over a date range —
+ * format-agnostic (the caller renders it as PDF or Excel). "Present" means
+ * only "has at least one TimeSession that day" — there is no work
+ * schedule or holiday calendar anywhere in this system to judge whether a
+ * given day *should* have had one, so every day in the range is included,
+ * weekends included, without asserting that absence on any particular day
+ * was unexpected.
+ */
+const generateAttendanceReportData = async (
+  user: JwtPayload,
+  opts: { startDate: string; endDate: string; employee?: string; project?: string; company?: string },
+): Promise<AttendanceReportData> => {
+  if (opts.endDate < opts.startDate) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'endDate must not be before startDate');
+  }
+  const rangeDates = dateRangeStrings(opts.startDate, opts.endDate);
+  if (rangeDates.length > MAX_ATTENDANCE_RANGE_DAYS) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, `Date range cannot exceed ${MAX_ATTENDANCE_RANGE_DAYS} days`);
+  }
+
+  let targetEmployees: { _id: Types.ObjectId; name?: string; email?: string }[];
+
+  if (user.role === USER_ROLES.EMPLOYEES) {
+    const self = await User.findById(user.authId).select('name email').lean();
+    if (!self) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    targetEmployees = [self];
+  } else if (opts.employee) {
+    const employee = await User.findById(opts.employee).select('name email company').lean();
+    if (!employee) throw new ApiError(StatusCodes.NOT_FOUND, 'Employee not found');
+    if (user.role === USER_ROLES.COMPANY && employee.company?.toString() !== user.authId) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to view this employee\'s report');
+    }
+    targetEmployees = [employee];
+  } else if (user.role === USER_ROLES.COMPANY) {
+    // Company-wide: every employee belonging to this company. Callers
+    // requesting this (no `employee` filter) are expected to go through the
+    // async report job endpoint, not this function called synchronously
+    // from a live request — see timetracker.route.ts. `opts.company` is
+    // ignored here on purpose: a COMPANY user can only ever see their own
+    // company's employees, never one supplied on the request.
+    targetEmployees = await User.find({ company: user.authId, role: USER_ROLES.EMPLOYEES }).select('name email').lean();
+  } else if (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN) {
+    if (opts.company) {
+      // Single-company roll-up: every employee of the specified company.
+      const company = await User.findOne({ _id: opts.company, role: USER_ROLES.COMPANY }).select('_id').lean();
+      if (!company) throw new ApiError(StatusCodes.NOT_FOUND, 'Company not found');
+      targetEmployees = await User.find({ company: opts.company, role: USER_ROLES.EMPLOYEES }).select('name email').lean();
+    } else {
+      // No employee and no company: a true cross-company report, every
+      // employee across every company. Admin-only — see role check above.
+      targetEmployees = await User.find({ role: USER_ROLES.EMPLOYEES }).select('name email').lean();
+    }
+  } else {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'An employee must be specified for this role');
+  }
+
+  const employees: EmployeeAttendance[] = [];
+
+  for (const employee of targetEmployees) {
+    const sessionQuery: any = {
+      user: employee._id,
+      date: { $gte: opts.startDate, $lte: opts.endDate },
+    };
+    if (opts.project) sessionQuery.project = new Types.ObjectId(opts.project);
+
+    const sessions = await TimeSession.find(sessionQuery).select('date totalTime').lean();
+
+    const byDate = new Map<string, { sessionsCount: number; workMs: number }>();
+    sessions.forEach(s => {
+      const entry = byDate.get(s.date) || { sessionsCount: 0, workMs: 0 };
+      entry.sessionsCount += 1;
+      entry.workMs += s.totalTime || 0;
+      byDate.set(s.date, entry);
+    });
+
+    const days: AttendanceDayEntry[] = rangeDates.map(date => {
+      const entry = byDate.get(date);
+      return {
+        date,
+        present: !!entry,
+        sessionsCount: entry?.sessionsCount || 0,
+        workMs: entry?.workMs || 0,
+      };
+    });
+
+    employees.push({
+      employeeId: employee._id.toString(),
+      employeeName: employee.name || employee._id.toString(),
+      employeeEmail: employee.email,
+      days,
+      presentCount: days.filter(d => d.present).length,
+      absentCount: days.filter(d => !d.present).length,
+    });
+  }
+
+  const companyName = user.role === USER_ROLES.COMPANY ? user.name : undefined;
+
+  return {
+    companyName,
+    startDate: opts.startDate,
+    endDate: opts.endDate,
+    employees,
+  };
+};
+
+/**
+ * Renders already-computed attendance data as PDF or Excel. Kept separate
+ * from generateAttendanceReportData so the async report job processor
+ * (reportjob module) can compute once and render however the requester
+ * asked, the same way the synchronous endpoint does.
+ */
+const renderAttendanceReport = async (
+  data: AttendanceReportData,
+  format: 'pdf' | 'excel',
+  lang: 'en' | 'de' = 'en',
+): Promise<{ buffer: Buffer; contentType: string; fileExtension: string }> => {
+  if (format === 'excel') {
+    return {
+      buffer: await generateAttendanceReportExcel(data),
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileExtension: 'xlsx',
+    };
+  }
+  return {
+    buffer: await generateAttendanceReportPdf(data, lang),
+    contentType: 'application/pdf',
+    fileExtension: 'pdf',
+  };
+};
+
 export const TimeTrackerService = {
   startTimer,
   pauseTimer,
@@ -228,10 +382,12 @@ export const TimeTrackerService = {
   getDailySummary,
   addPeriodicLocation,
   getSessionLocations,
+  generateAttendanceReportData,
+  renderAttendanceReport,
   getLocationsByDate,
   generateMonthlyPdfReport: async (
     user: JwtPayload,
-    opts: { month: string; employee?: string; project?: string; template?: 'default' | 'timesheet' | 'comprehensive', lang?: 'en' | 'de' }
+    opts: { month: string; employee?: string; project?: string; template?: 'default' | 'timesheet' | 'comprehensive', lang?: 'en' | 'de', format?: 'pdf' | 'excel' }
   ) => {
 
     console.log('generateMonthlyPdfReport', opts);
@@ -320,9 +476,32 @@ export const TimeTrackerService = {
       daily,
     };
 
-    const pdfBuffer = await generateComprehensiveTimesheetReport(commonData, opts.lang || 'en');
+    if (opts.format === 'excel') {
+      const excelBuffer = await generateMonthlyTimesheetExcel(commonData);
+      return {
+        buffer: excelBuffer,
+        employeeName: commonData.employeeName,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        fileExtension: 'xlsx',
+      };
+    }
 
+    // `template` picks the PDF layout: 'timesheet' is the plain daily-summary
+    // report, 'default'/'comprehensive'/unset is the branded bilingual layout.
+    let pdfBuffer: Buffer;
+    switch (opts.template) {
+      case 'timesheet':
+        pdfBuffer = await generateTimesheetStyleMonthlyReport(commonData);
+        break;
+      case 'default':
+        pdfBuffer = await generateMonthlyTimeReportPdf(commonData);
+        break;
+      case 'comprehensive':
+      default:
+        pdfBuffer = await generateComprehensiveTimesheetReport(commonData, opts.lang || 'en');
+        break;
+    }
 
-    return {pdfBuffer, employeeName: commonData.employeeName};
+    return { buffer: pdfBuffer, employeeName: commonData.employeeName, contentType: 'application/pdf', fileExtension: 'pdf' };
   },
 };

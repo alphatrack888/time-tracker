@@ -232,8 +232,13 @@ const updateProject = async (
       ...addedEmployees.map(employeeId => ({
         from: result.company._id,
         to: employeeId,
-        title: `You've been added to ${result.title}`,
-        body: `You've been added to "${result.title}". Start: ${result.startDate?.toDateString()}, End: ${result.endDate?.toDateString()}.`,
+        kind: 'projectEmployeeAdded' as const,
+        data: {
+          projectTitle: result.title,
+          startDate: result.startDate?.toDateString(),
+          endDate: result.endDate?.toDateString(),
+        },
+        type: 'added' as const,
       }))
     );
   }
@@ -244,8 +249,9 @@ const updateProject = async (
       ...removedEmployees.map(employeeId => ({
         from: result.company._id,
         to: employeeId,
-        title: `You've been removed from "${result.title}"`,
-        body: `You've been removed from the project "${result.title}". If this was unexpected, please contact your manager.`,
+        kind: 'projectEmployeeRemoved' as const,
+        data: { projectTitle: result.title },
+        type: 'removed' as const,
       }))
     );
   }
@@ -261,9 +267,20 @@ const updateProject = async (
   }
   
 
-  // Send notifications if any
+  // Send notifications if any. Idempotency key is scoped to *this specific
+  // update* (project + employee + added/removed + the update's own
+  // timestamp) rather than the (project, employee, action) tuple forever —
+  // an employee legitimately removed and later re-added must be notified
+  // both times, not silently deduped against their first addition.
+  const updateTimestamp = (updatedProject?.updatedAt ?? new Date()).toISOString()
   notificationsData.forEach(notification => {
-    dispatchNotification({ from: notification.from.toString(), to: notification.to.toString(), title: notification.title, body: notification.body })
+    dispatchNotification({
+      from: notification.from.toString(),
+      to: notification.to.toString(),
+      kind: notification.kind,
+      data: notification.data,
+      idempotencyKey: `project:${id}:employee:${notification.to.toString()}:${notification.type}:${updateTimestamp}`,
+    })
   })
 
   return updatedProject;

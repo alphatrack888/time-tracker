@@ -20,15 +20,12 @@ const createPayrole = async (user: JwtPayload, employeeId: string, payload: IPay
     );
 
     //now send the notification
-    const notificationData = {
+    dispatchNotification({
       from: user.authId,
-      to: result.employee,
-      title: 'You have received a new payrole',
-      body: `You have been assigned a new payrole, please see the document for more details`,
-    };
-
-
-    dispatchNotification({ from: notificationData.from, to: notificationData.to.toString(), title: notificationData.title, body: notificationData.body })
+      to: result.employee.toString(),
+      kind: 'payrollCreated',
+      idempotencyKey: `payrole:${result._id.toString()}:created`,
+    })
 
     return "Payrole created successfully";
 };

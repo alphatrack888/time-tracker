@@ -8,6 +8,8 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
     title: { type: String },
     body: { type: String },
     isRead: { type: Boolean },
+    category: { type: String },
+    idempotencyKey: { type: String, unique: true, sparse: true },
     createdAt: { type: Date },
     updatedAt: { type: Date },
   },

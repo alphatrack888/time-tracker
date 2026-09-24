@@ -18,6 +18,8 @@
    - [Subscriptions](#subscriptions)
    - [Public Content](#public-content)
    - [Notifications](#notifications)
+   - [Device Tokens](#device-tokens)
+   - [Notification Preferences](#notification-preferences)
    - [Gallery](#gallery)
    - [Notes](#notes)
    - [Payroll](#payroll)
@@ -343,6 +345,8 @@ images: [file] (optional)
 - `page`: Page number (optional)
 - `limit`: Items per page (optional)
 - `search`: Search term (optional)
+- `role`: exact-match filter, e.g. `role=company` or `role=employee` (optional)
+- `company`: exact-match filter by company id, e.g. `role=employee&company=<companyId>` for one company's employee list (optional, added Phase 8). For a COMPANY/EMPLOYEES caller this is redundant with — never a way around — their own automatic company scoping; meaningful mainly for ADMIN/SUPER_ADMIN, who otherwise see every user.
 
 **Response:**
 ```json
@@ -418,10 +422,13 @@ images: [file] (optional)
 data: {
     "name": "Updated Name",
     "email": "updated@example.com",
-    "phone": "+1234567890"
+    "phone": "+1234567890",
+    "timezone": "America/New_York"
 }
 images: [file] (optional)
 ```
+
+**`timezone`** (Phase 6, optional): must be a real IANA timezone identifier (e.g. `"America/New_York"`, `"Asia/Tokyo"`) — validated against `Intl.supportedValuesOf('timeZone')`, rejected with `400` otherwise. Mainly meaningful for COMPANY-role accounts: the daily overtime sweep uses it to determine that company's local calendar-day boundaries. Falls back to UTC wherever unset.
 
 **Response:**
 ```json
@@ -710,10 +717,10 @@ images: [file] (optional)
 
 ---
 
-### 9. Generate Monthly PDF Report
+### 9. Generate Monthly Report
 **GET** `/timetracker/reports/monthly`
 
-**Description:** Generate a monthly PDF report containing an employee's daily work and break time details.
+**Description:** Generate a monthly report containing an employee's daily work and break time details, as PDF (default) or Excel.
 
 **Headers:**
 - `Authorization: Bearer <token>` (COMPANY, ADMIN, SUPER_ADMIN, or EMPLOYEES)
@@ -722,17 +729,132 @@ images: [file] (optional)
 - `month` (required): Month in `YYYY-MM` format
 - `employee` (optional): Employee user ID. If omitted, uses the authenticated user
 - `project` (optional): Project ID to filter sessions
- - `template` (optional): `default`, `timesheet`, or `comprehensive` for layout style
+- `template` (optional): `default`, `timesheet`, or `comprehensive` for PDF layout style (ignored when `format=excel`)
+- `lang` (optional): `en` (default) or `de` — PDF only
+- `format` (optional, Phase 5): `pdf` (default) or `excel`. Excel produces a two-sheet workbook (Summary + one row per session).
 
 **Response:**
-- Content-Type: `application/pdf`
-- A downloadable PDF file with:
-  - Summary totals (work hours, break hours, days tracked, sessions)
-  - Daily breakdown with sessions, work hours, and break durations
+- `application/pdf` or `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as a downloadable attachment.
 
 **Example:**
 ```
-GET /api/v1/timetracker/reports/monthly?month=2025-09&employee=68a4d83f2756fe079b9366b7&template=comprehensive
+GET /api/v1/timetracker/reports/monthly?month=2025-09&employee=68a4d83f2756fe079b9366b7&format=excel
+```
+
+---
+
+### 10. Generate Attendance Report (synchronous, single employee)
+
+**GET** `/timetracker/reports/attendance`
+
+**Description:** Generate a present/absent-per-day report for one employee over a date range, as PDF or Excel (Phase 5). "Present" means only "has at least one clocked session that day" — there is no work-schedule or holiday-calendar data in this system, so every day in the range is returned, weekends included, without judging whether a day was expected to be worked.
+
+**Headers:**
+- `Authorization: Bearer <token>` (COMPANY, ADMIN, SUPER_ADMIN, or EMPLOYEES)
+
+**Query Parameters:**
+- `startDate`, `endDate` (required): `YYYY-MM-DD`, range capped at 366 days
+- `employee` (required for everyone except EMPLOYEES, who are always scoped to themselves): Employee user ID. COMPANY may only request an employee belonging to their own company (`403` otherwise).
+- `project` (optional): filter sessions to one project
+- `format` (optional): `pdf` (default) or `excel`
+- `lang` (optional): `en` (default) or `de` — PDF only
+
+**Company-wide requests:** omitting `employee` is rejected with `400` for every role except EMPLOYEES — this endpoint is synchronous and deliberately kept small (one employee at a time). A company-wide report (every employee in a company) is only available through the async endpoints below.
+
+**Example:**
+```
+GET /api/v1/timetracker/reports/attendance?startDate=2025-09-01&endDate=2025-09-30&employee=68a4d83f2756fe079b9366b7&format=excel
+```
+
+---
+
+### 11. Request Attendance Report (async, Phase 5; opened to admins in Phase 8)
+
+**POST** `/timetracker/reports/attendance/async`
+
+**Description:** Starts generating an attendance report in the background. Returns immediately with a job id, and the requester gets a `reportReady` (or `reportFailed`) notification when it's done (this notification category is mandatory and can't be disabled via notification preferences). The finished file is uploaded and its URL is attached to the job.
+
+**Headers:**
+- `Authorization: Bearer <token>` (COMPANY, ADMIN, or SUPER_ADMIN)
+
+**Scope depends on role and the optional `company` field:**
+- **COMPANY** — always every employee of the requester's own company. Any `company` sent in the body is ignored, not trusted.
+- **ADMIN / SUPER_ADMIN**, `company` given — every employee of that one company. The company is validated to exist (and be a COMPANY-role user) before the job is created; an unknown id is rejected with `404` immediately rather than silently producing an empty report later.
+- **ADMIN / SUPER_ADMIN**, `company` omitted — every employee across every company (a true cross-company report). No cap on how many employees this can span.
+
+**Body:**
+```json
+{
+  "startDate": "2025-09-01",
+  "endDate": "2025-09-30",
+  "company": "optional-company-id (ADMIN/SUPER_ADMIN only)",
+  "project": "optional-project-id",
+  "format": "pdf",
+  "lang": "en"
+}
+```
+
+**Response:** `202 Accepted`
+```json
+{ "jobId": "...", "status": "pending" }
+```
+
+### 12. Get Report Job Status
+
+**GET** `/timetracker/reports/jobs/:jobId`
+
+**Description:** Polls a single report job's status. Scoped to the requesting user — a job belonging to someone else returns `404`, not `403`, so as not to confirm it exists.
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "jobId": "...",
+  "type": "attendance",
+  "format": "pdf",
+  "status": "pending | processing | ready | failed",
+  "fileUrl": "https://... (present once status is 'ready')",
+  "errorMessage": "... (present once status is 'failed')",
+  "startDate": "2025-09-01",
+  "endDate": "2025-09-30",
+  "company": "... (present only for an ADMIN/SUPER_ADMIN job scoped to one company)",
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+### 13. List My Report Jobs (Phase 8)
+
+**GET** `/timetracker/reports/jobs`
+
+**Description:** Paginated list of the requesting user's own report jobs, newest first — backs a "my report requests" view. Tenant-isolated the same way job status is: only ever returns the caller's own jobs.
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+**Query params:** `page` (default 1), `limit` (default 20, capped at 50)
+
+**Response:**
+```json
+{
+  "meta": { "page": 1, "limit": 20, "total": 2, "totalPages": 1 },
+  "data": [
+    {
+      "jobId": "...",
+      "type": "attendance",
+      "format": "pdf",
+      "status": "ready",
+      "fileUrl": "https://...",
+      "startDate": "2025-09-01",
+      "endDate": "2025-09-30",
+      "company": null,
+      "createdAt": "...",
+      "updatedAt": "..."
+    }
+  ]
+}
 ```
 
 ---
@@ -1237,10 +1359,12 @@ image: [file] (optional)
 
 ## Notifications
 
+**Roles:** all authenticated roles (`employee`, `company`, `admin`, `super_admin`). Was `employee`/`admin` only until Phase 12 — `company` and `super_admin` got a silent `403` from every endpoint below despite Phase 7 (admin dashboard) and Phase 9 (company dashboard) both building full notification UIs against this API; undetected until Phase 12 because neither of those phases had a reachable real backend to test against, only mocked responses. Fixed to match the same `anyAuthenticatedRole` pattern already used by notification-preferences and the reportjob module.
+
 ### 1. Get Notifications
 **GET** `/notifications`
 
-**Description:** Get user notifications
+**Description:** Get the current user's notifications, newest first.
 
 **Headers:**
 - `Authorization: Bearer <token>`
@@ -1248,12 +1372,25 @@ image: [file] (optional)
 **Query Parameters:**
 - `page`: Page number (optional)
 - `limit`: Items per page (optional)
-- `read`: Filter by read status (optional)
+
+**Response `data.meta`:**
+```json
+{
+  "page": 1,
+  "limit": 20,
+  "total": 42,
+  "totalPages": 3,
+  "unreadCount": 5
+}
+```
+`unreadCount` (added Phase 12) is a true count across *all* of the user's notifications, not just the current page — the single source of truth for a badge, so it can't drift out of sync with the actual unread list the way independently summing one page's items would.
+
+Each notification row in `data.data[]` also now carries `category` (added Phase 12 — one of `leave`/`project`/`payroll`/`overtime`/`attendance`/`subscription`/`account`/`report`, or absent for an ad-hoc send with no category) alongside the existing `_id`/`title`/`body`/`isRead`/`from`/`to`/`createdAt`/`updatedAt`. Previously only present transiently in the FCM push payload (Phase 11); persisting it on the row itself lets a client route a tap on a notification fetched from this list, not just one delivered live as a push. Absent on any notification created before this field existed.
 
 ### 2. Mark Notification as Read
-**PATCH** `/notifications/:id/read`
+**PATCH** `/notifications/:id`
 
-**Description:** Mark specific notification as read
+**Description:** Mark specific notification as read (was previously implemented as `GET`, which mutated state on a read-only verb — fixed to `PATCH`)
 
 **Headers:**
 - `Authorization: Bearer <token>`
@@ -1262,23 +1399,129 @@ image: [file] (optional)
 - `id`: Notification ID
 
 ### 3. Mark All Notifications as Read
-**PATCH** `/notifications/mark-all-read`
+**PATCH** `/notifications/all`
 
-**Description:** Mark all notifications as read
+**Description:** Mark all of the current user's notifications as read (was previously implemented as `GET`, and registered after `/:id` so it was shadowed and unreachable — fixed to `PATCH` and reordered ahead of `/:id`)
 
 **Headers:**
 - `Authorization: Bearer <token>`
 
 ### 4. Delete Notification
-**DELETE** `/notifications/:id`
+**Not implemented.** No `DELETE /notifications/:id` route exists in the current API — this section previously documented an endpoint that was never built. Left here as a known gap rather than silently removed.
 
-**Description:** Delete specific notification
+---
+
+## Device Tokens
+
+Push-notification device registration (integration plan Phase 1). Superseded the old single-token `User.deviceToken` field — a user can now have any number of registered devices (phone + tablet + browser, etc.), each tracked as its own row. This is the frozen contract mobile (Phase 11) and both web dashboards (Phases 7/9, if web push is added) build against.
+
+**Roles:** all authenticated roles (`employee`, `company`, `admin`, `super_admin`) may register/list/deregister their own devices.
+
+### 1. Register Device
+**POST** `/devices/register`
+
+**Description:** Registers (or re-registers) a push token for the current user. Upserts by token: calling this again with the same token just refreshes `lastSeenAt`/`appVersion`. If the token was previously registered to a *different* user (a shared/kiosk device that changed hands), ownership is reassigned to the current user and the old owner stops receiving push on that device.
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "token": "string, required — the FCM/APNs registration token",
+  "platform": "ios | android | web, optional",
+  "appVersion": "string, optional"
+}
+```
+
+**Response:** the created/updated device row (`_id`, `user`, `token`, `platform`, `appVersion`, `lastSeenAt`, timestamps).
+
+### 2. List My Devices
+**GET** `/devices`
+
+**Description:** Lists every device currently registered to the authenticated user, most recently seen first.
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+### 3. Deregister Device
+**DELETE** `/devices/:token`
+
+**Description:** Removes a device token — call on logout so a signed-out device stops receiving push for that user. Scoped to the requesting user: attempting to deregister a token owned by someone else returns `404 Not Found` (never a `403`, so as not to confirm whether the token exists at all for another account).
 
 **Headers:**
 - `Authorization: Bearer <token>`
 
 **Parameters:**
-- `id`: Notification ID
+- `token`: the device token to remove (path segment)
+
+---
+
+## Notification Preferences
+
+Per-user opt-in/out for notification categories, a global push kill switch, preferred language, and digest mode (integration plan Phases 4 and 6). Every notification trigger in the system checks these before creating an in-app row or sending push — see the category table below for which triggers belong to which category.
+
+**Roles:** all authenticated roles.
+
+**Default (no preference record yet):** every category `true`, `pushEnabled: true`, `digestMode: "realtime"`, `language: "en"` — a user who has never touched these settings, including every account that existed before this feature shipped, gets everything, not nothing.
+
+### 1. Get My Preferences
+**GET** `/notification-preferences`
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "pushEnabled": true,
+  "categories": {
+    "leave": true,
+    "project": true,
+    "payroll": true,
+    "overtime": true,
+    "attendance": true,
+    "subscription": true
+  },
+  "digestMode": "realtime",
+  "language": "en"
+}
+```
+
+### 2. Update My Preferences
+**PATCH** `/notification-preferences`
+
+**Description:** Partial update — send only the fields you want to change. `categories` merges field-by-field (an omitted category is left as-is, not reset). `language` writes through to the user's account (also used for PDF report generation, per the existing `lang` report param).
+
+**Headers:**
+- `Authorization: Bearer <token>`
+
+**Body (all fields optional):**
+```json
+{
+  "pushEnabled": false,
+  "categories": { "leave": false },
+  "digestMode": "daily",
+  "language": "de"
+}
+```
+
+**Notes:**
+- `account` and `report` are **not** valid category keys and are rejected (`400`) if sent — account-lifecycle notifications (new-employee welcome/confirmation) and report-job outcome notifications (`reportReady`/`reportFailed`) are mandatory and can't be disabled.
+- `language` accepts only `"en"` or `"de"`; anything else is rejected (`400`).
+- `digestMode` (Phase 6): `"realtime"` (default) pushes each notification individually as it happens. `"daily"` still creates the in-app row/badge update immediately, but withholds the individual push — instead, a once-daily summary push ("You have N new notifications") is sent covering everything unread from the last 24 hours, at a fixed time (default 07:00 UTC, not personalized per-user timezone — see `DIGEST_SEND_TIME`). Mandatory-category notifications (account, report) are never batched, even in daily mode — you're still pushed immediately for those.
+
+### Category → trigger reference
+
+| Category | Triggers |
+|---|---|
+| `leave` | Leave request submitted / approved / rejected, leave balance low/exhausted |
+| `project` | Employee added to / removed from a project |
+| `payroll` | New payroll record created |
+| `overtime` | Daily overtime threshold crossed (employee and company alerts) |
+| `attendance` | Forgot-to-clock-out reminder |
+| `subscription` | Payment failure alert, trial-ending reminder (company/admin only) |
+| *(mandatory, no toggle)* | New employee onboarded; report job ready/failed; daily digest summary |
 
 ---
 
@@ -1427,6 +1670,8 @@ description: "Image description"
 ---
 
 ## Payroll
+
+**Note (Phase 5 decision):** payroll documents are uploaded by the company as files (see `files` below) — there is no server-side payslip/PDF generator, and none is planned. If you're looking for one, this is by design, not a gap: unlike the timetracker reports above, payroll records here are always company-prepared documents, not computed from `TimeSession` data.
 
 ### 1. Create Payroll
 **POST** `/payrole`
