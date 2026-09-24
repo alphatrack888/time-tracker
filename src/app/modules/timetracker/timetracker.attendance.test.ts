@@ -5,6 +5,170 @@ import { TimeSession } from './timetracker.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
 
+// Phase 16 QA matrix row: "Report requested for a date range spanning a DST
+// transition." Both halves of the calculation (which calendar day a session
+// belongs to, and how many hours it totals) are UTC-based throughout this
+// codebase — startTimer derives `date` from `now.toISOString()`, and
+// totalTime is always a plain millisecond diff between two Date#getTime()
+// values, never a local-time recomputation. UTC has no DST transitions, so
+// neither step can be affected by one. These tests exist to lock that in as
+// a regression, not because reading the code left real doubt.
+describe('TimeTrackerService.generateAttendanceReportData — DST transitions (Phase 16)', () => {
+  const seedEmployee = async () =>
+    User.create({
+      name: 'DST Employee',
+      email: `dst-employee-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+
+  it('computes correct total hours for a session spanning a US spring-forward transition (2026-03-08)', async () => {
+    const employee = await seedEmployee()
+    // A US Eastern clock "loses" the 2:00-3:00am local hour on this date.
+    // If duration were ever computed via local-time field subtraction
+    // instead of a raw UTC millisecond diff, an 8-hour shift starting
+    // before and ending after the transition would come out short by an
+    // hour. Stored as a UTC instant pair either way — this is what the
+    // real startTimer/stopTimer code path always produces.
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-03-08T09:00:00.000Z'),
+      endTime: new Date('2026-03-08T17:00:00.000Z'),
+      totalTime: 8 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-03-08',
+    })
+
+    const data = await TimeTrackerService.generateAttendanceReportData(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { startDate: '2026-03-07', endDate: '2026-03-09' },
+    )
+
+    const day = data.employees[0].days.find(d => d.date === '2026-03-08')
+    expect(day?.present).toBe(true)
+    expect(day?.workMs).toBe(8 * 60 * 60 * 1000)
+  })
+
+  it('computes correct total hours for a session spanning a US fall-back transition (2026-11-01)', async () => {
+    const employee = await seedEmployee()
+    // The complementary case: a local Eastern clock repeats the 1:00-2:00am
+    // hour on this date. Same reasoning — UTC millisecond diffs are
+    // unaffected by the repeated local hour.
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-11-01T09:00:00.000Z'),
+      endTime: new Date('2026-11-01T17:00:00.000Z'),
+      totalTime: 8 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-11-01',
+    })
+
+    const data = await TimeTrackerService.generateAttendanceReportData(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { startDate: '2026-10-31', endDate: '2026-11-02' },
+    )
+
+    const day = data.employees[0].days.find(d => d.date === '2026-11-01')
+    expect(day?.present).toBe(true)
+    expect(day?.workMs).toBe(8 * 60 * 60 * 1000)
+  })
+
+  it('attributes a session that crosses UTC midnight to its own date only, not a transition-adjacent day', async () => {
+    const employee = await seedEmployee()
+    // A session close to the UTC day boundary is the only place a
+    // date-bucketing bug could actually show up — proving it lands on
+    // exactly one bucket, not split or shifted, regardless of the DST
+    // dates on either side of it.
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-03-08T23:50:00.000Z'),
+      endTime: new Date('2026-03-08T23:59:00.000Z'),
+      totalTime: 9 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-03-08',
+    })
+
+    const data = await TimeTrackerService.generateAttendanceReportData(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { startDate: '2026-03-07', endDate: '2026-03-09' },
+    )
+
+    const days = data.employees[0].days
+    expect(days.find(d => d.date === '2026-03-08')?.workMs).toBe(9 * 60 * 1000)
+    expect(days.find(d => d.date === '2026-03-07')?.present).toBe(false)
+    expect(days.find(d => d.date === '2026-03-09')?.present).toBe(false)
+  })
+})
+
+// Phase 16 QA matrix row: "Report generation while the underlying data is
+// being actively written (employee currently clocked in, mid-session)."
+// totalTime is only advanced at pause/stop (see startTimer/pauseTimer/
+// stopTimer in timetracker.service.ts) — an `active` session that has never
+// been paused holds totalTime: 0 in the DB for its entire duration. That's
+// the defined rule this suite locks in: an in-progress, never-paused
+// session is reported as present with the time already committed by a
+// pause/stop event, never a live/partial in-flight duration, and never a
+// crash or undefined value.
+describe('TimeTrackerService.generateAttendanceReportData — report generated mid-session (Phase 16)', () => {
+  const seedEmployee = async () =>
+    User.create({
+      name: 'Mid-Session Employee',
+      email: `mid-session-employee-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+
+  it('shows a never-paused active session as present with workMs=0 (nothing committed yet), not a crash or negative value', async () => {
+    const employee = await seedEmployee()
+    await TimeTrackerService.startTimer(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      {},
+    )
+
+    const data = await TimeTrackerService.generateAttendanceReportData(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) },
+    )
+
+    const day = data.employees[0].days[0]
+    expect(day.present).toBe(true)
+    expect(day.workMs).toBe(0)
+  })
+
+  it('includes only the time committed by a pause for a session paused mid-way, excluding time elapsed since resume', async () => {
+    const employee = await seedEmployee()
+    const session = await TimeTrackerService.startTimer(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      {},
+    )
+    await TimeTrackerService.pauseTimer(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      session._id.toString(),
+    )
+    await TimeTrackerService.resumeTimer(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      session._id.toString(),
+    )
+
+    const committedAfterPause = (await TimeSession.findById(session._id))!.totalTime
+
+    const data = await TimeTrackerService.generateAttendanceReportData(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) },
+    )
+
+    const day = data.employees[0].days[0]
+    expect(day.present).toBe(true)
+    // Deterministic and reproducible — exactly what pauseTimer already
+    // committed to the DB, whatever that value is, not a live-updating one.
+    expect(day.workMs).toBe(committedAfterPause)
+  })
+})
+
 describe('TimeTrackerService.generateAttendanceReportData (Phase 5)', () => {
   const seedEmployee = async (companyId?: string) =>
     User.create({

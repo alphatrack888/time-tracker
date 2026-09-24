@@ -139,7 +139,10 @@ export const sendPushNotification = async (
       // The whole batch call itself failed (e.g. FCM outage) rather than
       // any individual token being rejected — every token in this batch is
       // reported failed, none are treated as invalid/removable.
-      logger.error("Push batch failed entirely:", error instanceof Error ? error.message : error);
+      logger.error(
+        `Push batch failed entirely: tokens=${batch.length} title="${title}"`,
+        error instanceof Error ? error.message : error,
+      );
       batch.forEach(token => results.push({ token, success: false, errorCode: "batch-send-failed" }));
     }
   }

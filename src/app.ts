@@ -9,6 +9,7 @@ import cookieParser from 'cookie-parser'
 import globalErrorHandler from './app/middleware/globalErrorHandler'
 import passport from './app/modules/auth/passport.auth/config/passport'
 import { SubscriptionController } from './app/modules/subscription/subscription.controller'
+import { register as metricsRegister } from './shared/metrics'
 
 const app = express()
 
@@ -56,6 +57,14 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     database: mongoStateNames[dbState] ?? 'unknown',
   })
+})
+
+// Prometheus scrape endpoint (Phase 15). Unauthenticated, same as /health
+// above — a scraper hits this on a private network path, never through a
+// browser session, so it doesn't belong behind the app's user auth().
+app.get('/metrics', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', metricsRegister.contentType)
+  res.send(await metricsRegister.metrics())
 })
 
 //router

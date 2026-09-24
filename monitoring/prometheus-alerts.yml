@@ -1,0 +1,93 @@
+# Phase 15 (observability & alerting). Rate-over-time threshold alerting
+# belongs in Prometheus/Alertmanager, not reimplemented inside the Node
+# process — this file is a standard PromQL alert-rule config, meant to be
+# loaded by a Prometheus server that scrapes GET /metrics on this service
+# (see ../src/app.ts). No such server is deployed in this environment, so
+# these rules cannot be "run" here; what's verified here instead is that
+# the counters they threshold against behave correctly — see
+# ../src/helpers/notificationHelper.metrics.test.ts and
+# ../src/app/modules/reportjob/reportjob.metrics.test.ts.
+groups:
+  - name: alpha-track-notifications
+    rules:
+      - alert: AlphaTrackPushFailureRateHigh
+        # Failures as a share of all push send attempts over the last 15m,
+        # not a raw failure count — a low-traffic period producing 3
+        # failures out of 3 attempts is the same 100% signal as a
+        # high-traffic period producing 300 out of 300, and a raw count
+        # alone would either spam on the former or miss the latter.
+        expr: >
+          (
+            sum(rate(alpha_track_push_send_total{result="failure"}[15m]))
+            /
+            sum(rate(alpha_track_push_send_total[15m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Push notification failure rate above 50% for 10m'
+          description: >
+            More than half of push send attempts have failed over a
+            sustained 15m window. Check reason= labels on
+            alpha_track_push_send_total for the dominant FCM error code
+            (e.g. firebase-not-configured means the service account env
+            var is missing/invalid, not an FCM-side outage).
+
+      - alert: AlphaTrackPushFailureRateHighFirebaseNotConfigured
+        # A narrower, higher-severity variant of the rule above: 100% of
+        # attempts failing with this exact reason means Firebase Admin
+        # never initialized at all (see pushnotificationHelper.ts's
+        # startup try/catch) — a config problem, not a device-level or
+        # transient FCM problem, and it never recovers on its own.
+        expr: >
+          sum(rate(alpha_track_push_send_total{result="failure", reason="firebase-not-configured"}[15m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Push notifications failing because Firebase Admin is not configured'
+          description: >
+            FIREBASE_SERVICE_ACCOUNT_BASE64 is missing or invalid in this
+            environment's config (see BACKEND_DEPLOYMENT_GUIDE.md). All
+            push sends are being skipped, not just degraded.
+
+  - name: alpha-track-reports
+    rules:
+      - alert: AlphaTrackReportGenerationFailureRateHigh
+        expr: >
+          (
+            sum(rate(alpha_track_report_generation_total{result="failure"}[30m]))
+            /
+            sum(rate(alpha_track_report_generation_total[30m]))
+          ) > 0.25
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Report generation failure rate above 25% for 15m'
+          description: >
+            Covers monthly, attendance (sync), and attendance-async report
+            types together (see the type= label to narrow down which).
+
+      - alert: AlphaTrackAsyncReportJobSlow
+        # p95 async job duration, not the mean — a handful of very slow
+        # cross-company jobs are the operational concern (are they about
+        # to time out something downstream, or exhaust memory), and a
+        # mean can hide that behind a larger number of fast single-company
+        # jobs.
+        expr: >
+          histogram_quantile(
+            0.95,
+            sum(rate(alpha_track_report_job_duration_seconds_bucket[30m])) by (le)
+          ) > 120
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p95 async report job duration above 2 minutes'
+          description: >
+            Check alpha_track_report_job_duration_seconds by type= — a
+            cross-company job (no `company` scoping) is expected to be
+            the slowest legitimate case; anything else this slow is worth
+            investigating.

@@ -135,4 +135,32 @@ describe('NotificationPreferenceServices.runNotificationDigestSweep (Phase 6)', 
 
     expect(result).toEqual({ usersChecked: 2, digestsSent: 1 })
   })
+
+  // Phase 16 QA matrix row: "Preferences opt-out during an in-flight
+  // scheduled sweep." The sweep's own query (`NotificationPreference.find({
+  // digestMode: 'daily' })`, read once at the top of the function) only
+  // decides *which users* get checked this run — it never caches any
+  // individual user's preference values. Each user's actual send still
+  // goes through sendNotification, which re-reads that user's preferences
+  // fresh at call time (getEffectivePreferences). So a user who opts out
+  // of push at any point up to the moment their own turn in the sweep's
+  // loop is reached gets no push for this run — there's no stale snapshot
+  // to race against, by construction, not by a special case added for this.
+  it('withholds the push for a user who has opted out of push by the time the sweep reaches them, even though they were in the daily-digest list', async () => {
+    const user = new Types.ObjectId()
+    await NotificationPreference.create({ user, digestMode: 'daily', pushEnabled: false })
+    await Notification.create({ to: user, from: user, title: 'A', body: 'a', isRead: false })
+
+    const result = await NotificationPreferenceServices.runNotificationDigestSweep(new Date('2026-05-01T07:00:00.000Z'))
+
+    // Still "sent" from the sweep's own accounting (it created the in-app
+    // digest row and doesn't distinguish push-withheld from push-sent in
+    // its return value) — what matters here is the push itself.
+    expect(result).toEqual({ usersChecked: 1, digestsSent: 1 })
+    expect(mockedSendPush).not.toHaveBeenCalled()
+    // The in-app row is a separate concern from the push preference — an
+    // opt-out from push doesn't also hide the user's own notification
+    // center, only silences the OS-level push for it.
+    expect(await Notification.findOne({ to: user, title: 'Your daily notification summary' })).not.toBeNull()
+  })
 })

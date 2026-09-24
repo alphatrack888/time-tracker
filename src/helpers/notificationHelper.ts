@@ -12,6 +12,7 @@ import {
   NotificationKind,
   renderNotificationTemplate,
 } from './notificationTemplates'
+import { notificationCreatedCounter, pushSendCounter, staleTokenCleanupCounter } from '../shared/metrics'
 
 type BasePayload = {
   from: string
@@ -116,9 +117,11 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
       logger.info(`notification:skipped reason=duplicate-idempotency-key key=${idempotencyKey}`)
       return
     }
-    logger.error(`notification:create-failed to=${to} title="${title}"`, err)
+    logger.error(`notification:create-failed from=${from} to=${to} category=${category ?? 'none'} kind=${payload.kind ?? 'literal'} title="${title}"`, err)
     return
   }
+
+  notificationCreatedCounter.inc({ category: category ?? 'none' })
 
   try {
     const populatedResult = await Notification.findById(created._id)
@@ -175,12 +178,21 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
     const failed = results.length - succeeded
     logger.info(`push:attempted to=${to} devices=${results.length} succeeded=${succeeded} failed=${failed} title="${title}"`)
 
+    results.forEach(r => {
+      if (r.success) {
+        pushSendCounter.inc({ result: 'success', reason: 'none' })
+      } else {
+        pushSendCounter.inc({ result: 'failure', reason: r.errorCode ?? 'unknown' })
+      }
+    })
+
     const staleTokens = results.filter(r => !r.success && r.isTokenInvalid)
     if (staleTokens.length > 0) {
       await Promise.all(staleTokens.map(r => DeviceTokenServices.removeStaleToken(r.token)))
+      staleTokenCleanupCounter.inc(staleTokens.length)
       logger.info(`push:stale-tokens-removed to=${to} count=${staleTokens.length}`)
     }
   } catch (err) {
-    logger.error(`push:unexpected-failure to=${to} title="${title}"`, err)
+    logger.error(`push:unexpected-failure to=${to} category=${category ?? 'none'} notificationId=${created._id} title="${title}"`, err)
   }
 }
