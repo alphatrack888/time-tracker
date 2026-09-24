@@ -8,7 +8,6 @@ import { TimeTrackerService } from './timetracker.service';
 import pick from '../../../shared/pick';
 import { paginationFields } from '../../../interfaces/pagination';
 import { USER_ROLES } from '../../../enum/user';
-import { reportGenerationCounter } from '../../../shared/metrics';
 
 
 const startTimer = catchAsync(async (req: Request, res: Response) => {
@@ -59,15 +58,7 @@ const getMonthlyPdfReport = catchAsync(async (req: Request, res: Response) => {
     month: string; employee?: string; project?: string;
     template?: 'default' | 'timesheet' | 'comprehensive'; lang?: 'en' | 'de'; format?: 'pdf' | 'excel';
   };
-  const reportFormat = format || 'pdf';
-  let result;
-  try {
-    result = await TimeTrackerService.generateMonthlyPdfReport(req.user!, { month, employee, project, template, lang, format });
-  } catch (err) {
-    reportGenerationCounter.inc({ type: 'monthly', format: reportFormat, result: 'failure' });
-    throw err;
-  }
-  reportGenerationCounter.inc({ type: 'monthly', format: reportFormat, result: 'success' });
+  const result = await TimeTrackerService.generateMonthlyPdfReport(req.user!, { month, employee, project, template, lang, format });
   const { buffer, employeeName, contentType, fileExtension } = result;
   const suffix = format === 'excel' ? '' : (template ? '-' + template : '' + (lang ? '-' + lang : '-en'));
   const filename = `monthly-report-${employeeName}-${month}${suffix}.${fileExtension}`;
@@ -91,16 +82,8 @@ const getAttendanceReport = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  const reportFormat = format || 'pdf';
-  let buffer, contentType, fileExtension;
-  try {
-    const data = await TimeTrackerService.generateAttendanceReportData(req.user!, { startDate, endDate, employee, project });
-    ({ buffer, contentType, fileExtension } = await TimeTrackerService.renderAttendanceReport(data, reportFormat, lang));
-  } catch (err) {
-    reportGenerationCounter.inc({ type: 'attendance', format: reportFormat, result: 'failure' });
-    throw err;
-  }
-  reportGenerationCounter.inc({ type: 'attendance', format: reportFormat, result: 'success' });
+  const data = await TimeTrackerService.generateAttendanceReportData(req.user!, { startDate, endDate, employee, project });
+  const { buffer, contentType, fileExtension } = await TimeTrackerService.renderAttendanceReport(data, format || 'pdf', lang);
   const filename = `attendance-report-${startDate}-to-${endDate}.${fileExtension}`;
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

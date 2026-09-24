@@ -12,7 +12,6 @@ import {
   NotificationKind,
   renderNotificationTemplate,
 } from './notificationTemplates'
-import { notificationCreatedCounter, pushSendCounter, staleTokenCleanupCounter } from '../shared/metrics'
 
 type BasePayload = {
   from: string
@@ -121,8 +120,6 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
     return
   }
 
-  notificationCreatedCounter.inc({ category: category ?? 'none' })
-
   try {
     const populatedResult = await Notification.findById(created._id)
       .populate('from', { profile: 1, name: 1 })
@@ -178,18 +175,9 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
     const failed = results.length - succeeded
     logger.info(`push:attempted to=${to} devices=${results.length} succeeded=${succeeded} failed=${failed} title="${title}"`)
 
-    results.forEach(r => {
-      if (r.success) {
-        pushSendCounter.inc({ result: 'success', reason: 'none' })
-      } else {
-        pushSendCounter.inc({ result: 'failure', reason: r.errorCode ?? 'unknown' })
-      }
-    })
-
     const staleTokens = results.filter(r => !r.success && r.isTokenInvalid)
     if (staleTokens.length > 0) {
       await Promise.all(staleTokens.map(r => DeviceTokenServices.removeStaleToken(r.token)))
-      staleTokenCleanupCounter.inc(staleTokens.length)
       logger.info(`push:stale-tokens-removed to=${to} count=${staleTokens.length}`)
     }
   } catch (err) {

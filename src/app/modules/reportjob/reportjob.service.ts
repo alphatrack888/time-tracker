@@ -15,7 +15,6 @@ import { ReportJobFormat } from './reportjob.interface';
 import { TimeTrackerService } from '../timetracker/timetracker.service';
 import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enum/user';
-import { reportGenerationCounter, reportJobDurationHistogram } from '../../../shared/metrics';
 
 type CreateAttendanceJobPayload = {
   startDate: string;
@@ -41,7 +40,6 @@ const processAttendanceReportJob = async (jobId: string): Promise<void> => {
     return;
   }
 
-  const startedAt = process.hrtime.bigint();
   try {
     job.status = 'processing';
     await job.save();
@@ -61,12 +59,6 @@ const processAttendanceReportJob = async (jobId: string): Promise<void> => {
     job.fileUrl = fileUrl;
     await job.save();
 
-    reportGenerationCounter.inc({ type: 'attendance-async', format: job.format, result: 'success' });
-    reportJobDurationHistogram.observe(
-      { type: 'attendance-async', result: 'success' },
-      Number(process.hrtime.bigint() - startedAt) / 1e9,
-    );
-
     await sendNotification({
       from: job.requestedBy.toString(),
       to: job.requestedBy.toString(),
@@ -82,12 +74,6 @@ const processAttendanceReportJob = async (jobId: string): Promise<void> => {
     job.status = 'failed';
     job.errorMessage = error instanceof Error ? error.message : 'Unknown error';
     await job.save();
-
-    reportGenerationCounter.inc({ type: 'attendance-async', format: job.format, result: 'failure' });
-    reportJobDurationHistogram.observe(
-      { type: 'attendance-async', result: 'failure' },
-      Number(process.hrtime.bigint() - startedAt) / 1e9,
-    );
 
     await sendNotification({
       from: job.requestedBy.toString(),
