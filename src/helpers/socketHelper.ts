@@ -163,12 +163,12 @@ const sendNotificationsToUser = async (socket: SocketWithUser) => {
     if (!userId) return
 
     const [notifications, unreadCount] = await Promise.all([
-      Notification.find({ receiver: userId })
-        .populate([{ path: 'sender', select: 'name profile' }])
+      Notification.find({ to: userId })
+        .populate([{ path: 'from', select: 'name profile' }])
         .sort({ createdAt: -1 })
         .limit(50) // Limit to recent notifications
         .lean(),
-      Notification.countDocuments({ receiver: userId, isRead: false }),
+      Notification.countDocuments({ to: userId, isRead: false }),
     ])
 
     socket.emit(`notifications::${userId}`, {

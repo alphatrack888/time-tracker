@@ -1,5 +1,14 @@
 node_modules
 .env
+# Firebase service account keys - real secrets, never committed as raw
+# files. The backend only ever reads FIREBASE_SERVICE_ACCOUNT_BASE64 (in
+# .env, already ignored above) - a downloaded key file has no reason to
+# exist in this repo at all.
+*firebase-adminsdk*.json
+# Mobile app config files - these belong in arronglewert_alpha_track-dev
+# (android/app/ and ios/Runner/), not in this backend repo.
+google-services.json
+GoogleService-Info.plist
 /dist
 /logs
 /uploads

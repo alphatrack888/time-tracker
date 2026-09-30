@@ -8,6 +8,8 @@ import { errorLogger, logger } from './shared/logger'
 import { socketHelper } from './helpers/socketHelper'
 import { UserServices } from './app/modules/user/user.service'
 import { setSocketIO } from './helpers/socketInstances'
+import { cronService } from './app/modules/subscription/cron.service'
+import { timeTrackerCronService } from './app/modules/timetracker/timetracker.cron'
 // import { systemMonitor } from './helpers/system-monitor'
 
 //uncaught exception
@@ -48,14 +50,22 @@ async function main() {
     // Create admin user
     await UserServices.createAdmin()
 
-  
+
     // Initialize Socket.IO handlers
     socketHelper.socket(io)
     setSocketIO(io)
     //@ts-expect-error - augmenting the global object with the io instance
     global.io = io
 
+    // Start scheduled jobs (subscription health/billing monitoring). No-ops
+    // unless NODE_ENV=production or ENABLE_SUBSCRIPTION_MONITORING=true.
+    cronService.startSubscriptionCronJobs()
+    logger.info(colors.cyan(`⏰ Subscription cron jobs status: ${JSON.stringify(cronService.getJobsStatus())}`))
 
+    // Attendance/overtime sweeps and the notification digest — on by
+    // default in every environment (opt out via ENABLE_TIMETRACKER_CRON=false).
+    timeTrackerCronService.startTimeTrackerCronJobs()
+    logger.info(colors.cyan(`⏰ Time tracker cron jobs status: ${JSON.stringify(timeTrackerCronService.getJobsStatus())}`))
 
     logger.info(colors.green('🚀 Server initialization completed successfully'))
 
@@ -79,6 +89,10 @@ async function gracefulShutdown(signal: string) {
   logger.info(`🛑 ${signal} received, starting graceful shutdown...`)
 
   try {
+    // Stop scheduled jobs
+    cronService.stopAllJobs()
+    timeTrackerCronService.stopAllJobs()
+
     // Stop accepting new connections
     if (server) {
       server.close(() => {

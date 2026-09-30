@@ -1,15 +1,9 @@
 import { EventEmitter } from 'events'
 import { emailHelper } from './emailHelper'
-import { sendNotification } from './notificationHelper'
+import { sendNotification, SendNotificationPayload } from './notificationHelper'
 import { ISendEmail } from '../interfaces/email'
 
-export type NotificationEventPayload = {
-  from: string
-  to: string
-  title: string
-  body: string
-  deviceToken?: string
-}
+export type NotificationEventPayload = SendNotificationPayload
 
 const EMAIL_SEND_EVENT = 'email:send'
 const NOTIFICATION_SEND_EVENT = 'notification:send'
@@ -25,7 +19,7 @@ appEvents.on(EMAIL_SEND_EVENT, (payload: ISendEmail) => {
 })
 
 appEvents.on(NOTIFICATION_SEND_EVENT, (payload: NotificationEventPayload) => {
-  sendNotification(payload.from, payload.to, payload.title, payload.body, payload.deviceToken)
+  sendNotification(payload)
 })
 
 export const dispatchEmail = (payload: ISendEmail): void => {

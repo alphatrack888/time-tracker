@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { USER_ROLES } from '../../../enum/user'
+import { isValidTimezone } from '../../../helpers/timezoneHelper'
+
+const timezoneZodField = z
+  .string()
+  .refine(isValidTimezone, { message: 'timezone must be a valid IANA timezone identifier (e.g. "America/New_York")' })
+  .optional()
 
 const createUserZodSchema = z.object({
   body: z.object({
@@ -30,6 +36,10 @@ const updateUserZodSchema = z.object({
     designation: z.string().optional(),
     manualBreak: z.boolean().optional(),
     images: z.array(z.string()).optional(),
+    // Mainly meaningful for COMPANY-role users — see user.interface.ts and
+    // the Phase 6 daily overtime sweep, which uses this to determine that
+    // company's local calendar-day boundaries.
+    timezone: timezoneZodField,
   }),
 })
 
@@ -41,6 +51,7 @@ const adminUpdateUserZodSchema = z.object({
     designation: z.string().optional(),
     manualBreak: z.boolean().optional(),
     images: z.array(z.string()).optional(),
+    timezone: timezoneZodField,
   }),
 })
 

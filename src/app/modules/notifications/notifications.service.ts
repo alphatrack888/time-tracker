@@ -10,7 +10,7 @@ import { paginationHelper } from '../../../helpers/paginationHelper'
 
 const getNotifications = async (user: JwtPayload, paginationOptions: IPaginationOptions) => {
   const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions)
-  const [result, total] = await Promise.all([
+  const [result, total, unreadCount] = await Promise.all([
     Notification.find({ to: user.authId })
       .populate('to')
       .populate('from')
@@ -19,14 +19,20 @@ const getNotifications = async (user: JwtPayload, paginationOptions: IPagination
       .sort({ [sortBy]: sortOrder })
       .lean(),
     Notification.countDocuments({ to: user.authId }),
+    // Server-computed, not derived from the current page — the admin/
+    // company dashboards' bells (Phase 7/9) approximated this from just
+    // the 20 most recent items and explicitly deferred a real count to
+    // this phase; mobile's badge (Phase 12) uses this field directly.
+    Notification.countDocuments({ to: user.authId, isRead: false }),
   ])
-  
+
     return {
       meta: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        unreadCount,
       },
       data: result,
     }

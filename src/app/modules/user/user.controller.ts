@@ -11,7 +11,10 @@ import { userFilterables } from './user.constants'
 
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
   const { images, ...userData } = req.body
-  if (images.length > 0) {
+  // `images` is only present when the request actually included one —
+  // most profile updates (name, timezone, ...) don't, and this used to
+  // crash unconditionally on `images.length` for every one of them.
+  if (images?.length > 0) {
     userData.profile = images[0]
   }
   const result = await UserServices.updateProfile(req.user!, userData)

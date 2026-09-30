@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
+import { JwtPayload } from 'jsonwebtoken';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../errors/ApiError';
 import { TimeTrackerService } from './timetracker.service';
 import pick from '../../../shared/pick';
 import { paginationFields } from '../../../interfaces/pagination';
+import { USER_ROLES } from '../../../enum/user';
 
 
 const startTimer = catchAsync(async (req: Request, res: Response) => {
@@ -51,13 +54,40 @@ const getLocationsByDate = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMonthlyPdfReport = catchAsync(async (req: Request, res: Response) => {
-  const { month, employee, project, template, lang } = req.query as { month: string; employee?: string; project?: string; template?: 'default' | 'timesheet' | 'comprehensive'; lang?: 'en' | 'de' };
-  const result = await TimeTrackerService.generateMonthlyPdfReport(req.user!, { month, employee, project, template, lang });
-  const {pdfBuffer, employeeName} = result;
-  const filename = `monthly-report-${( employeeName)}-${month}${template ? '-' + template : '' + (lang ? '-' + lang : '-en')}.pdf`;
-  res.setHeader('Content-Type', 'application/pdf');
+  const { month, employee, project, template, lang, format } = req.query as {
+    month: string; employee?: string; project?: string;
+    template?: 'default' | 'timesheet' | 'comprehensive'; lang?: 'en' | 'de'; format?: 'pdf' | 'excel';
+  };
+  const result = await TimeTrackerService.generateMonthlyPdfReport(req.user!, { month, employee, project, template, lang, format });
+  const { buffer, employeeName, contentType, fileExtension } = result;
+  const suffix = format === 'excel' ? '' : (template ? '-' + template : '' + (lang ? '-' + lang : '-en'));
+  const filename = `monthly-report-${employeeName}-${month}${suffix}.${fileExtension}`;
+  res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.status(StatusCodes.OK).send(pdfBuffer);
+  res.status(StatusCodes.OK).send(buffer);
+});
+
+const getAttendanceReport = catchAsync(async (req: Request, res: Response) => {
+  const { startDate, endDate, employee, project, format, lang } = req.query as {
+    startDate: string; endDate: string; employee?: string; project?: string; format?: 'pdf' | 'excel'; lang?: 'en' | 'de';
+  };
+
+  // This endpoint is synchronous, so it must stay small: a company-wide
+  // request (no `employee`) can span every employee in a company and
+  // belongs on the async report job endpoints instead.
+  if (!employee && (req.user as JwtPayload).role !== USER_ROLES.EMPLOYEES) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Specify an employee for this report, or use POST /timetracker/reports/attendance/async for a company-wide report.',
+    );
+  }
+
+  const data = await TimeTrackerService.generateAttendanceReportData(req.user!, { startDate, endDate, employee, project });
+  const { buffer, contentType, fileExtension } = await TimeTrackerService.renderAttendanceReport(data, format || 'pdf', lang);
+  const filename = `attendance-report-${startDate}-to-${endDate}.${fileExtension}`;
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.status(StatusCodes.OK).send(buffer);
 });
 
 export const TimeTrackerController = {
@@ -70,4 +100,5 @@ export const TimeTrackerController = {
   getSessionLocations,
   getLocationsByDate,
   getMonthlyPdfReport,
+  getAttendanceReport,
 };

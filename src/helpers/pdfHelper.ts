@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { AttendanceReportData } from './attendanceReportTypes';
 
 type DailySessionBreak = { start?: Date; end?: Date; durationMs: number };
 type DailySession = {
@@ -507,6 +508,110 @@ export const generateTimesheetStyleMonthlyReport = async (data: MonthlyReportDat
     const rightX = doc.page.width - 60 - sigLineWidth;
     doc.moveTo(rightX, sigY).lineTo(rightX + sigLineWidth, sigY).stroke();
     doc.text('DATUM', rightX, sigY + 8);
+
+    doc.end();
+  });
+};
+
+const ATTENDANCE_LABELS = {
+  en: {
+    title: 'Attendance Report',
+    range: 'Date range',
+    company: 'Company',
+    employee: 'Employee',
+    present: 'Present days',
+    absent: 'Absent days',
+    date: 'Date',
+    status: 'Status',
+    sessions: 'Sessions',
+    hours: 'Hours',
+    yes: 'Present',
+    no: 'Absent',
+  },
+  de: {
+    title: 'Anwesenheitsbericht',
+    range: 'Zeitraum',
+    company: 'Unternehmen',
+    employee: 'Mitarbeiter',
+    present: 'Anwesende Tage',
+    absent: 'Abwesende Tage',
+    date: 'Datum',
+    status: 'Status',
+    sessions: 'Sitzungen',
+    hours: 'Stunden',
+    yes: 'Anwesend',
+    no: 'Abwesend',
+  },
+};
+
+/**
+ * One employee per section: a summary line, then a per-day table. "Absent"
+ * here means only "no TimeSession recorded that day" — there's no work
+ * schedule/holiday-calendar data anywhere in this system (same gap noted
+ * for the blocked clock-in-reminder trigger), so every day in the range is
+ * shown, weekends included, without judging whether it was a workday.
+ */
+export const generateAttendanceReportPdf = async (
+  data: AttendanceReportData,
+  lang: 'en' | 'de' = 'en',
+): Promise<Buffer> => {
+  const t = ATTENDANCE_LABELS[lang] || ATTENDANCE_LABELS.en;
+  const doc = new PDFDocument({ margin: 40 });
+  const chunks: Buffer[] = [];
+
+  return await new Promise<Buffer>((resolve) => {
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk as Buffer));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+    doc.fontSize(20).text(t.title, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`${t.range}: ${data.startDate} — ${data.endDate}`);
+    if (data.companyName) doc.text(`${t.company}: ${data.companyName}`);
+    doc.moveDown();
+
+    data.employees.forEach((emp, idx) => {
+      if (idx > 0) doc.addPage();
+
+      doc.fontSize(14).text(`${t.employee}: ${emp.employeeName}${emp.employeeEmail ? ` <${emp.employeeEmail}>` : ''}`);
+      doc.fontSize(12).text(`${t.present}: ${emp.presentCount}    ${t.absent}: ${emp.absentCount}`);
+      doc.moveDown(0.5);
+
+      const colWidths = [110, 90, 90, 90];
+      const headers = [t.date, t.status, t.sessions, t.hours];
+      // Captured once, before any text() call — pdfkit's own `doc.x` cursor
+      // drifts after each bounded-width text() call (it ends up wherever
+      // the last cell's rendering left it, not back at the row start), so
+      // re-reading `doc.x` per row silently shifted every row after the
+      // first one off to the right. Every column position below is
+      // computed from this fixed anchor instead.
+      const tableStartX = doc.x;
+      let y = doc.y;
+
+      doc.fontSize(10).font('Helvetica-Bold');
+      headers.forEach((h, i) => {
+        const colX = tableStartX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        doc.text(h, colX, y, { width: colWidths[i] });
+      });
+      doc.font('Helvetica');
+      y += 16;
+      const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+      doc.moveTo(tableStartX, y).lineTo(tableStartX + tableWidth, y).stroke();
+      y += 4;
+
+      emp.days.forEach(day => {
+        if (y > doc.page.height - 80) {
+          doc.addPage();
+          y = 50;
+        }
+        const workHours = (day.workMs / 1000 / 60 / 60).toFixed(2);
+        const row = [day.date, day.present ? t.yes : t.no, String(day.sessionsCount), workHours];
+        row.forEach((cell, i) => {
+          const colX = tableStartX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+          doc.fontSize(9).text(cell, colX, y, { width: colWidths[i] });
+        });
+        y += 14;
+      });
+    });
 
     doc.end();
   });

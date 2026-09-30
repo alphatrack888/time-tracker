@@ -64,34 +64,7 @@ npm run dev
 
 ## 🔧 Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
-
-```env
-PORT=3000
-MONGODB_URI=your_mongodb_uri
-JWT_SECRET=your_jwt_secret
-
-# Cloudinary Config
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-
-# AWS Config
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=
-AWS_BUCKET_NAME=
-
-# Email Config
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASS=
-
-# Stripe Config (Coming soon)
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-```
+See **[`BACKEND_DEPLOYMENT_GUIDE.md`](./BACKEND_DEPLOYMENT_GUIDE.md)** for the full, accurate list of required environment variables, generated directly from `src/config/index.ts`. (The list previously inlined here — `MONGODB_URI`, `CLOUDINARY_CLOUD_NAME`/`CLOUDINARY_API_SECRET`, AWS S3, SMTP — didn't match what the code actually reads and predated Cloudinary/Resend/Firebase being wired up for real; removed rather than left to mislead a new deployer.)
 
 ## 📁 Project Structure
 
