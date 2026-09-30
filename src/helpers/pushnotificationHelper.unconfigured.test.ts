@@ -3,6 +3,17 @@
 // isolated into its own file since the "configured" state is set up once
 // at module-load time and doesn't reset between tests in the same file.
 //
+// Mocking `../config` directly (rather than just deleting the env var) is
+// the load-bearing part: `config/index.ts` calls `dotenv.config()` at its
+// own module-load time, which refills `process.env.FIREBASE_SERVICE_ACCOUNT_BASE64`
+// straight back out of the real `.env` file the moment it's required —
+// `delete`-ing the env var alone only holds until that next require. This
+// used to appear to work anyway, purely by accident: whatever malformed/
+// placeholder credential previously lived in `.env` happened to make
+// `admin.credential.cert()` throw regardless. A real, validly-formatted
+// credential in `.env` (as there now is) exposed that this test was never
+// actually isolated from `.env`'s real content.
+//
 // `export {}` forces TypeScript to treat this file as a module rather than
 // a global script — without it, the top-level `let`s below live in the
 // same global scope as the identically-named ones in
@@ -15,6 +26,12 @@ let truncateForPush: typeof import('./pushnotificationHelper').truncateForPush
 
 beforeAll(() => {
   delete process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+
+  jest.doMock('../config', () => ({
+    __esModule: true,
+    default: { firebase_service_account_base64: undefined },
+  }))
+
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const helper = require('./pushnotificationHelper')
   sendPushNotification = helper.sendPushNotification
