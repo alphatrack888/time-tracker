@@ -20,10 +20,16 @@ const createGallery = async (user:JwtPayload, payload: {images: string[]}) => {
 };
 
 const getAllGallerys = async (user: JwtPayload) => {
-  const result = await Gallery.find({ user: user.authId }).select('image _id').lean();
+  const filter = { user: user.authId };
+  const [items, total] = await Promise.all([
+    Gallery.find(filter).select('image _id').sort({ createdAt: -1 }).lean(),
+    Gallery.countDocuments(filter),
+  ]);
 
-
-  return result || [];
+  return {
+    items: items || [],
+    total,
+  };
 };
 
 const getSingleGallery = async (user: JwtPayload, id: string) => {

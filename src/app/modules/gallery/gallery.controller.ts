@@ -43,13 +43,18 @@ import { Request, Response } from 'express';
   });
   
   const getAllGallerys = catchAsync(async (req: Request, res: Response) => {
-    const result = await GalleryServices.getAllGallerys(req.user!);
-    
+    const { items, total } = await GalleryServices.getAllGallerys(req.user!);
+
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
       message: 'Gallerys retrieved successfully',
-      data: result,
+      meta: {
+        page: 1,
+        limit: items.length,
+        total,
+      },
+      data: items,
     });
   });
   
