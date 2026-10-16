@@ -26,7 +26,7 @@ export const fileAndBodyProcessorUsingDiskStorage = () => {
   ) => {
     try {
       const allowedTypes = {
-        images: ['image/jpeg', 'image/png', 'image/jpg'],
+        images: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
         media: ['video/mp4', 'audio/mpeg', 'video/avi'],
         documents: ['application/pdf', 'application/msword', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint'],
           audio: [
