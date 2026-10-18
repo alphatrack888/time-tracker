@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
-import {  ILeavemanagement, LeavemanagementModel } from './leavemanagement.interface'; 
+import {  ILeavemanagement, LeavemanagementModel } from './leavemanagement.interface';
+import { LEAVE_TYPES } from './leaveTypes';
 
 
 const leavemanagementSchema = new Schema<ILeavemanagement, LeavemanagementModel>({
@@ -13,7 +14,7 @@ const leavemanagementSchema = new Schema<ILeavemanagement, LeavemanagementModel>
     select: 'name email',
   } },
   totalDays: { type: Number,default:0 },
-  type: { type: String, enum: ['earn', 'sick', 'casual', 'wp'], default: 'earn' },
+  type: { type: String, enum: [...LEAVE_TYPES], default: 'earn' },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   from: { type: Date },
   to: { type: Date },

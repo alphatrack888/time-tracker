@@ -9,6 +9,16 @@ import { Leavebalance } from '../leavebalance/leavebalance.model';
 import { Types } from 'mongoose';
 import { dispatchNotification } from '../../../helpers/appEvents';
 import { logger } from '../../../shared/logger';
+import {
+  LEAVE_TYPES,
+  LEAVE_TYPE_LABELS,
+  LeaveType,
+  isLeaveType,
+  remainingDaysForType,
+  typeToBalanceField,
+  typeToBalanceLeftKey,
+} from './leaveTypes';
+import { leaveApplyApiError } from './leaveApplyErrors';
 
 // Below this many remaining days for a leave type, the employee gets a
 // "running low" notification when a request against that type is approved.
@@ -18,32 +28,40 @@ const createLeavemanagement = async (
   user: JwtPayload,
   payload: ILeavemanagement,
 ) => {
-  payload.user = user.authId;
-  // Derived from the employee's own JWT, never trusted from the client body
-  // — otherwise an employee could submit a leave request against a company
-  // that isn't theirs.
-  payload.company = user.company;
-  payload.from = new Date(payload.from);
-  payload.to = new Date(payload.to);
-  const availableLeaveBalances = await getAvailableLeaveBalance(user, payload.company.toString())
-  
-  //calculate the day difference between from and to
-  const dayDifference = (payload.to.getTime() - payload.from.getTime()) / (1000 * 60 * 60 * 24)
-  if(dayDifference <= 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid leave date range')
-  }
-
-  payload.totalDays = dayDifference == 0 ? 1 : dayDifference;
-  if ((availableLeaveBalances as Record<string, number>)[payload.type] < dayDifference) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You do not have enough leave balance to request this leave')
-  }
-
-  const result = await Leavemanagement.create(payload);
-  if (!result)
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Failed to create Leavemanagement',
+  try {
+    payload.user = user.authId;
+    // Derived from the employee's own JWT, never trusted from the client body
+    // — otherwise an employee could submit a leave request against a company
+    // that isn't theirs.
+    payload.company = user.company;
+    payload.from = new Date(payload.from);
+    payload.to = new Date(payload.to);
+    const availableLeaveBalances = await getAvailableLeaveBalance(
+      user,
+      payload.company.toString(),
     );
+
+    //calculate the day difference between from and to
+    const dayDifference =
+      (payload.to.getTime() - payload.from.getTime()) / (1000 * 60 * 60 * 24);
+    if (dayDifference <= 0) {
+      throw leaveApplyApiError('LEAVE_INVALID_DATE_RANGE');
+    }
+
+    payload.totalDays = dayDifference == 0 ? 1 : dayDifference;
+    if (!isLeaveType(payload.type)) {
+      throw leaveApplyApiError('LEAVE_INVALID_TYPE');
+    }
+    const remaining = remainingDaysForType(
+      availableLeaveBalances,
+      payload.type,
+    );
+    if (remaining < payload.totalDays) {
+      throw leaveApplyApiError('LEAVE_INSUFFICIENT_BALANCE');
+    }
+
+    const result = await Leavemanagement.create(payload);
+    if (!result) throw leaveApplyApiError('LEAVE_CREATE_FAILED');
 
     dispatchNotification({
       from: user.id,
@@ -55,8 +73,15 @@ const createLeavemanagement = async (
         to: payload.to.toDateString(),
       },
       idempotencyKey: `leaveRequest:${result._id.toString()}:submitted`,
-    })
-  return result;
+    });
+    return result;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('createLeavemanagement unexpected error', error);
+    throw leaveApplyApiError('LEAVE_SUBMIT_UNEXPECTED');
+  }
 };
 
 const getAllLeavemanagements = async (user: JwtPayload, filters: ILeavemanagementFilterables) => {
@@ -110,32 +135,19 @@ const getAllLeavemanagements = async (user: JwtPayload, filters: ILeavemanagemen
     wpLeave: 0
   };
 
-  const formattedLeaveBalances = [
-    {
-      type: "Casual Leave",
-      taken: Math.max(companyLeaves.casualLeave - (leaveBalances.casualLeaveLeft ?? 0), 0),
-      balance: leaveBalances.casualLeaveLeft ?? 0,
-      status: "Active"
-    },
-    {
-      type: "Sick Leave",
-      taken: Math.max(companyLeaves.sickLeave - (leaveBalances.sickLeaveLeft ?? 0), 0),
-      balance: leaveBalances.sickLeaveLeft ?? 0,
-      status: "Active"
-    },
-    {
-      type: "Earn Leave",
-      taken: Math.max(companyLeaves.earnLeave - (leaveBalances.earnLeaveLeft ?? 0), 0),
-      balance: leaveBalances.earnLeaveLeft ?? 0,
-      status: "Active"
-    },
-    {
-      type: "Without Pay Leave",
-      taken: Math.max(companyLeaves.wpLeave - (leaveBalances.wpLeaveLeft ?? 0), 0),
-      balance: leaveBalances.wpLeaveLeft ?? 0,
-      status: "Active"
+  const formattedLeaveBalances = LEAVE_TYPES.map((leaveType: LeaveType) => {
+    const balanceField = typeToBalanceField(leaveType)
+    const leftKey = typeToBalanceLeftKey(leaveType)
+    const allocated = companyLeaves[balanceField] ?? 0
+    const left = leaveBalances[leftKey] ?? 0
+    return {
+      type: leaveType,
+      label: LEAVE_TYPE_LABELS[leaveType],
+      taken: Math.max(allocated - left, 0),
+      balance: left,
+      status: 'active',
     }
-  ];
+  });
 
   return {
     leavemanagements: [...result],
@@ -224,7 +236,8 @@ const notifyIfLeaveBalanceLow = async (
   leaveRequestId: string,
 ) => {
   const balances = await getAvailableLeaveBalance({ authId: result.user.toString() } as JwtPayload, user.authId)
-  const balanceKey = `${result.type}LeaveLeft` as keyof typeof balances
+  if (!isLeaveType(result.type)) return
+  const balanceKey = typeToBalanceLeftKey(result.type)
   const remaining = balances[balanceKey]
 
   if (typeof remaining !== 'number' || remaining > LOW_LEAVE_BALANCE_THRESHOLD_DAYS) return
@@ -252,7 +265,7 @@ const getAvailableLeaveBalance = async (user: JwtPayload, company: string) => {
     })
   ])
 
-  if(!leaveBalance) throw new ApiError(StatusCodes.NOT_FOUND, 'Leave balance not found, please try again')
+  if (!leaveBalance) throw leaveApplyApiError('LEAVE_BALANCE_NOT_CONFIGURED');
 
   const earnLeaveLeft = leaveBalance?.earnLeave - leavemanagements.filter((leave) => leave.type === 'earn').reduce((acc, cur) => acc + cur.totalDays, 0)
   const sickLeaveLeft = leaveBalance?.sickLeave - leavemanagements.filter((leave) => leave.type === 'sick').reduce((acc, cur) => acc + cur.totalDays, 0)
