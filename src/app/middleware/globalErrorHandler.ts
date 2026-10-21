@@ -8,6 +8,8 @@ import handleZodError from '../../errors/handleZodError'
 import handleCastError from '../../errors/handleCastError'
 import ApiError from '../../errors/ApiError'
 
+const SAFE_INTERNAL_ERROR_MESSAGE = 'Something went wrong.'
+
 const globalErrorHandler: ErrorRequestHandler = (
   error,
   req: Request,
@@ -17,8 +19,9 @@ const globalErrorHandler: ErrorRequestHandler = (
   console.log('Inside Global Error Handler🪐', error)
 
   let statusCode = 500
-  let message = 'Something wen wrong!'
+  let message = SAFE_INTERNAL_ERROR_MESSAGE
   let errorMessages: IGenericErrorMessage[] = []
+  let errorCode: string | undefined
 
   if (error?.name === 'validationError') {
     const simplifiedError = handleValidationError(error)
@@ -28,16 +31,19 @@ const globalErrorHandler: ErrorRequestHandler = (
   } else if (error instanceof ZodError) {
     const simplifiedError = handleZodError(error)
     statusCode = simplifiedError.statusCode
-    message = simplifiedError.errorMessages[0].message
+    message = simplifiedError.message
     errorMessages = simplifiedError.errorMessages
+    errorCode = simplifiedError.errorCode
   } else if (error?.name === 'CastError') {
     const simplifiedError = handleCastError(error)
     statusCode = simplifiedError.statusCode
-    message = simplifiedError.message
+    message =
+      simplifiedError.errorMessages[0]?.message ?? simplifiedError.message
     errorMessages = simplifiedError.errorMessages
   } else if (error instanceof ApiError) {
     statusCode = error?.statusCode
     message = error?.message
+    errorCode = error?.errorCode
     errorMessages = error?.message
       ? [{ path: '', message: error?.message }]
       : []
@@ -48,9 +54,18 @@ const globalErrorHandler: ErrorRequestHandler = (
       : []
   }
 
+  if (
+    statusCode === 500 &&
+    config.node_env === 'production'
+  ) {
+    message = SAFE_INTERNAL_ERROR_MESSAGE
+    errorMessages = [{ path: '', message: SAFE_INTERNAL_ERROR_MESSAGE }]
+  }
+
   res.status(statusCode).json({
     success: false,
     message: message,
+    ...(errorCode ? { errorCode } : {}),
     errorMessages,
     stack: config.node_env === 'production' ? undefined : error?.stack,
   })

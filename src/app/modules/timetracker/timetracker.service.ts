@@ -116,7 +116,15 @@ const stopTimer = async (user: JwtPayload, sessionId: string, location?: { lat: 
 };
 
 const getDailySummary = async (user: JwtPayload, filters: { date: string; project?: string }) => {
-  const query: any = { user: user.authId, date: filters.date };
+  const dayStart = new Date(`${filters.date}T00:00:00.000Z`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const query: any = {
+    user: user.authId,
+    $or: [
+      { date: filters.date },
+      { startTime: { $gte: dayStart, $lt: dayEnd } },
+    ],
+  };
   if (filters.project) query.project = new Types.ObjectId(filters.project);
 
   const [sessions, project] = await Promise.all([

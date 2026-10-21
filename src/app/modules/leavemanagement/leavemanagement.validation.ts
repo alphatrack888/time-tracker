@@ -1,21 +1,24 @@
 import { z } from 'zod';
+import { LEAVE_TYPES, isLeaveType } from './leaveTypes';
+import { LEAVE_APPLY_ERRORS } from './leaveApplyErrors';
 
 export const LeavemanagementValidations = {
   create: z.object({
     body: z.object({
       type: z.string({
-        required_error: 'Type is required',
-        invalid_type_error: 'Type must be a string',
-      }).refine((val) => ['earn', 'sick', 'casual', 'wp'].includes(val), {
-        message: 'Type must be either earn, sick, casual, or wp',
+        required_error: LEAVE_APPLY_ERRORS.LEAVE_TYPE_REQUIRED.message,
+        invalid_type_error: LEAVE_APPLY_ERRORS.LEAVE_TYPE_INVALID.message,
+      }).refine((val) => isLeaveType(val), {
+        message: LEAVE_APPLY_ERRORS.LEAVE_TYPE_INVALID.message,
+        params: { errorCode: 'LEAVE_TYPE_INVALID' },
       }),
       from: z.string({
-        required_error: 'From is required',
-        invalid_type_error: 'From must be a string',
+        required_error: LEAVE_APPLY_ERRORS.LEAVE_FROM_REQUIRED.message,
+        invalid_type_error: LEAVE_APPLY_ERRORS.LEAVE_FROM_REQUIRED.message,
       }),
       to: z.string({
-        required_error: 'To is required',
-        invalid_type_error: 'To must be a string',
+        required_error: LEAVE_APPLY_ERRORS.LEAVE_TO_REQUIRED.message,
+        invalid_type_error: LEAVE_APPLY_ERRORS.LEAVE_TO_REQUIRED.message,
       }),
       reason: z.string(),
     }),
