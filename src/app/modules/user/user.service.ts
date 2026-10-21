@@ -195,23 +195,30 @@ const adminUpdateUser = async (user: JwtPayload, id: string, payload: Partial<IU
   throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to edit users')
 }
 
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Today, UTC Monday, and UTC month start for a `YYYY-MM-DD` string.
+ * Date-only strings are UTC days. Local getDay()/getMonth() shift the
+ * window by a day anywhere the server is not on UTC.
+ */
+export const workingHoursWindow = (date?: string) => {
+  const today = date && DATE_KEY.test(date) ? date : new Date().toISOString().split('T')[0]
+  const utc = new Date(`${today}T00:00:00.000Z`)
+  const dayOfWeek = utc.getUTCDay()
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = new Date(utc)
+  weekStart.setUTCDate(utc.getUTCDate() - daysToMonday)
+  return {
+    today,
+    weekStart: weekStart.toISOString().split('T')[0],
+    monthStart: `${today.slice(0, 7)}-01`,
+  }
+}
+
 // API 1: Get working hours summary (today, this week, this month)
 const getWorkingHoursSummary = async (user: JwtPayload, date?: string) => {
-  console.log(date)
-  const now = new Date(date || new Date().toISOString().split('T')[0])
-  const today = now.toISOString().split('T')[0] // YYYY-MM-DD
-  
-  // Calculate week start (Monday)
-  const weekStart = new Date(now)
-  const dayOfWeek = weekStart.getDay()
-  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  weekStart.setDate(weekStart.getDate() - daysToMonday)
-  const weekStartStr = weekStart.toISOString().split('T')[0]
-  
-  // Calculate month start
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthStartStr = monthStart.toISOString().split('T')[0]
-  console.log(now)
+  const { today, weekStart: weekStartStr, monthStart: monthStartStr } = workingHoursWindow(date)
   const [todaySessions, weekSessions, monthSessions] = await Promise.all([
     TimeSession.find({ user: new Types.ObjectId(user.authId), date: today}).lean(),
     TimeSession.find({
