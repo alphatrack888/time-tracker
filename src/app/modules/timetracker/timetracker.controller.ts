@@ -30,6 +30,11 @@ const stopTimer = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: 'Timer stopped', data: result });
 });
 
+const getOpenSessions = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeTrackerService.getOpenSessions(req.user!);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: 'Open sessions fetched', data: result });
+});
+
 const getDailySummary = catchAsync(async (req: Request, res: Response) => {
   const result = await TimeTrackerService.getDailySummary(req.user!, req.query as any);
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: 'Daily summary fetched', data: result });
@@ -95,6 +100,7 @@ export const TimeTrackerController = {
   pauseTimer,
   resumeTimer,
   stopTimer,
+  getOpenSessions,
   getDailySummary,
   addPeriodicLocation,
   getSessionLocations,

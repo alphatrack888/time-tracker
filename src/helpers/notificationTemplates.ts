@@ -194,14 +194,24 @@ const TEMPLATES: Record<NotificationKind, Record<SupportedLanguage, TemplateFn>>
     }),
   },
   forgotClockOut: {
-    en: ({ date, thresholdHours }) => ({
-      title: 'Did you forget to clock out?',
-      body: `Your time session from ${date} is still open after ${thresholdHours}+ hours. Please clock out, or contact your manager if this is a mistake.`,
-    }),
-    de: ({ date, thresholdHours }) => ({
-      title: 'Haben Sie vergessen, sich abzumelden?',
-      body: `Ihre Zeiterfassung vom ${date} ist seit über ${thresholdHours} Stunden noch offen. Bitte melden Sie sich ab oder kontaktieren Sie Ihren Manager, falls dies ein Versehen ist.`,
-    }),
+    en: ({ date, thresholdHours, projectTitle }) => {
+      const named = typeof projectTitle === 'string' && projectTitle.trim().length > 0
+      const subject = named ? `Your ${projectTitle.trim()} session` : 'Your time session'
+      return {
+        title: 'Did you forget to clock out?',
+        body: `${subject} from ${date} is still open. It was started more than ${thresholdHours} hours ago. Please clock out, or contact your manager if this is a mistake.`,
+      }
+    },
+    de: ({ date, thresholdHours, projectTitle }) => {
+      const named = typeof projectTitle === 'string' && projectTitle.trim().length > 0
+      const subject = named
+        ? `Ihre Zeiterfassung für ${projectTitle.trim()}`
+        : 'Ihre Zeiterfassung'
+      return {
+        title: 'Haben Sie vergessen, sich abzumelden?',
+        body: `${subject} vom ${date} ist noch offen. Sie wurde vor mehr als ${thresholdHours} Stunden gestartet. Bitte melden Sie sich ab oder kontaktieren Sie Ihren Manager, falls dies ein Versehen ist.`,
+      }
+    },
   },
   subscriptionPaymentFailure: {
     en: ({ failureCount }) => ({

@@ -44,18 +44,24 @@ export const runForgotClockOutSweep = async (
   const openSessions = await TimeSession.find({
     status: { $in: ['active', 'paused'] },
     startTime: { $lte: cutoff },
-  }).lean();
+  }).populate('project', 'title').lean();
 
   await Promise.all(
-    openSessions.map(session =>
-      sendNotification({
+    openSessions.map(session => {
+      const project = session.project as { title?: string } | null
+      const projectTitle = typeof project?.title === 'string' ? project.title.trim() : ''
+      return sendNotification({
         from: session.user.toString(),
         to: session.user.toString(),
         kind: 'forgotClockOut',
-        data: { date: session.date, thresholdHours },
+        data: {
+          date: session.date,
+          thresholdHours,
+          ...(projectTitle ? { projectTitle } : {}),
+        },
         idempotencyKey: `timesession:${session._id.toString()}:forgotClockOut:${todayKey}`,
-      }),
-    ),
+      })
+    }),
   );
 
   logger.info(`attendance:forgot-clock-out-sweep checked=${openSessions.length} notified=${openSessions.length}`);

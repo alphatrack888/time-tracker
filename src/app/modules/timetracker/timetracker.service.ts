@@ -18,7 +18,29 @@ import { AttendanceReportData, AttendanceDayEntry, EmployeeAttendance } from '..
 import { generateMonthlyTimesheetExcel, generateAttendanceReportExcel } from '../../../helpers/excelHelper';
 import { generateAttendanceReportPdf } from '../../../helpers/pdfHelper';
 
+const OPEN_SESSION_MESSAGE = 'A time session is still open. Clock out before starting another.'
+
+/** Same cut as stopTimer: committed totalTime, plus the unpaused tail while active. */
+const elapsedMsForSession = (
+  session: Pick<ITimeSession, 'status' | 'totalTime' | 'startTime' | 'pauses'>,
+  now: Date,
+) => {
+  const committed = session.totalTime ?? 0
+  if (session.status !== 'active') return committed
+  const lastPause = session.pauses?.[session.pauses.length - 1]
+  const anchor = lastPause?.end?.getTime() ?? session.startTime.getTime()
+  return committed + Math.max(0, now.getTime() - anchor)
+}
+
 const startTimer = async (user: JwtPayload, payload: { project?: string; location?: { lat: number; lng: number } }) => {
+  const alreadyOpen = await TimeSession.exists({
+    user: user.authId,
+    status: { $in: ['active', 'paused'] },
+  })
+  if (alreadyOpen) {
+    throw new ApiError(StatusCodes.CONFLICT, OPEN_SESSION_MESSAGE)
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
   
@@ -114,6 +136,33 @@ const stopTimer = async (user: JwtPayload, sessionId: string, location?: { lat: 
   await session.save();
   return session;
 };
+
+const getOpenSessions = async (user: JwtPayload, now: Date = new Date()) => {
+  const sessions = await TimeSession.find({
+    user: user.authId,
+    status: { $in: ['active', 'paused'] },
+  })
+    .sort({ startTime: 1 })
+    .populate('project', 'title')
+    .lean()
+
+  return sessions.map(session => {
+    const project = session.project as { _id?: Types.ObjectId; title?: string } | null
+    const projectId = project && typeof project === 'object' && project._id
+      ? project._id.toString()
+      : null
+    return {
+      id: session._id.toString(),
+      status: session.status,
+      date: session.date,
+      startTime: session.startTime,
+      project: projectId
+        ? { id: projectId, title: project?.title || '' }
+        : null,
+      elapsedMs: elapsedMsForSession(session, now),
+    }
+  })
+}
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -419,6 +468,7 @@ export const TimeTrackerService = {
   pauseTimer,
   resumeTimer,
   stopTimer,
+  getOpenSessions,
   getDailySummary,
   addPeriodicLocation,
   getSessionLocations,
