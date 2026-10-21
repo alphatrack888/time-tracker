@@ -37,11 +37,19 @@ const stopTimerZodSchema = z.object({
   }),
 });
 
+const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+
 const getDailySummaryZodSchema = z.object({
-  query: z.object({
-    date: z.string({ required_error: 'Date is required' }),
-    project: z.string().optional(),
-  }),
+  query: z
+    .object({
+      date: dateKey.optional(),
+      from: dateKey.optional(),
+      to: dateKey.optional(),
+      project: z.string().optional(),
+    })
+    .refine((q) => Boolean(q.date) || Boolean(q.from && q.to), {
+      message: 'Provide date, or both from and to',
+    }),
 });
 
 const addPeriodicLocationZodSchema = z.object({

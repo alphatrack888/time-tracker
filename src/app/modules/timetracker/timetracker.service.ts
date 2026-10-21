@@ -115,61 +115,89 @@ const stopTimer = async (user: JwtPayload, sessionId: string, location?: { lat: 
   return session;
 };
 
-const getDailySummary = async (user: JwtPayload, filters: { date: string; project?: string }) => {
-  const dayStart = new Date(`${filters.date}T00:00:00.000Z`);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const query: any = {
-    user: user.authId,
-    $or: [
-      { date: filters.date },
-      { startTime: { $gte: dayStart, $lt: dayEnd } },
-    ],
-  };
-  if (filters.project) query.project = new Types.ObjectId(filters.project);
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 
-  const [sessions, project] = await Promise.all([
-    TimeSession.find(query).populate('project', 'name').lean(),
-    Project.findById(filters.project).lean()
-  ]);
+const formatHoursMinutes = (hours: number) => {
+  const totalMinutes = Math.max(0, Math.round(hours * 60))
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  return `${h}h ${m}m`
+}
 
-  if(!sessions || !project) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Something went wrong, please try again with valid project and session id.')
+const inclusiveUtcDays = (from: string, to: string) => {
+  const start = Date.parse(`${from}T00:00:00.000Z`)
+  const end = Date.parse(`${to}T00:00:00.000Z`)
+  return Math.floor((end - start) / (24 * 60 * 60 * 1000)) + 1
+}
+
+const getDailySummary = async (
+  user: JwtPayload,
+  filters: { date?: string; from?: string; to?: string; project?: string },
+) => {
+  const { date, from, to, project: projectId } = filters
+  const query: any = { user: user.authId }
+
+  if (from && to) {
+    if (!DATE_KEY.test(from) || !DATE_KEY.test(to) || from > to) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid date range')
+    }
+    if (inclusiveUtcDays(from, to) > 31) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Date range cannot exceed 31 days')
+    }
+    // Match the stored UTC date string only. Do not OR a startTime window.
+    query.date = { $gte: from, $lte: to }
+  } else if (date && DATE_KEY.test(date)) {
+    query.date = date
+  } else {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Date is required')
   }
 
-  const totalTime = sessions.reduce((sum, s) => sum + s.totalTime, 0) / (1000 * 60 * 60); // in hours
-  const overtime = Math.max(totalTime - (project?.projectTime || 8), 0); // assuming 8h standard
-  
-  // Calculate total break time in hours
+  if (projectId) query.project = new Types.ObjectId(projectId)
+
+  const sessions = await TimeSession.find(query).populate('project', 'title').lean()
+
+  let standardPerDay = 8
+  if (projectId) {
+    const project = await Project.findById(projectId).lean()
+    if (!project) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Something went wrong, please try again with valid project and session id.',
+      )
+    }
+    standardPerDay = project.projectTime || 8
+  }
+
+  const distinctDates = new Set(sessions.map((s) => s.date)).size
+  const standardHours = projectId ? standardPerDay : 8 * distinctDates
+
+  const totalTime = sessions.reduce((sum, s) => sum + (s.totalTime || 0), 0) / (1000 * 60 * 60)
+  const overtime = Math.max(totalTime - standardHours, 0)
+
   const totalBreakTimeMs = sessions.reduce((sum, session) => {
     if (session.pauses && session.pauses.length > 0) {
       const sessionBreakTime = session.pauses.reduce((pauseSum, pause) => {
         if (pause.start && pause.end) {
-          return pauseSum + (new Date(pause.end).getTime() - new Date(pause.start).getTime());
+          return pauseSum + (new Date(pause.end).getTime() - new Date(pause.start).getTime())
         }
-        return pauseSum;
-      }, 0);
-      return sum + sessionBreakTime;
+        return pauseSum
+      }, 0)
+      return sum + sessionBreakTime
     }
-    return sum;
-  }, 0);
-  
-  //format the total break time in hh:mm:ss
-  const totalBreakInHours = totalBreakTimeMs / (1000 * 60 * 60); // convert to hours
-  const totalBreakInMinutes = totalBreakTimeMs / (1000 * 60); // convert to minutes
-  const totalBreakInSeconds = totalBreakTimeMs / 1000; // convert to seconds
-  //format the total break time in hh:mm:ss
-  const totalBreakInHoursFormatted = `${Math.floor(totalBreakInHours)}:${Math.floor(totalBreakInMinutes)}:${Math.floor(totalBreakInSeconds)}`;
+    return sum
+  }, 0)
 
+  const totalBreakInHours = totalBreakTimeMs / (1000 * 60 * 60)
 
-  //also format the overtime same as break time
-  const overtimeInHours = overtime / 60; // convert to hours
-  const overtimeInMinutes = overtime; // convert to minutes
-  const overtimeInSeconds = overtime * 60; // convert to seconds
-  //format the overtime same as break time
-  const overtimeInHoursFormatted = `${Math.floor(overtimeInHours)}:${Math.floor(overtimeInMinutes)}:${Math.floor(overtimeInSeconds)}`;
-
-  return { totalTime:totalTime.toFixed(2), overtime:overtime.toFixed(2), totalBreakInHours:totalBreakInHours.toFixed(2), totalBreakInHoursFormatted, overtimeInHoursFormatted, sessions };
-};
+  return {
+    totalTime: totalTime.toFixed(2),
+    overtime: overtime.toFixed(2),
+    totalBreakInHours: totalBreakInHours.toFixed(2),
+    totalBreakInHoursFormatted: formatHoursMinutes(totalBreakInHours),
+    overtimeInHoursFormatted: formatHoursMinutes(overtime),
+    sessions,
+  }
+}
 
 const addPeriodicLocation = async (user: JwtPayload, sessionId: string, location: { lat: number; lng: number }) => {
   const session = await TimeSession.findById(sessionId);
