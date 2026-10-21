@@ -4,18 +4,35 @@ import { CustomAuthServices } from './custom.auth.service'
 import sendResponse from '../../../../shared/sendResponse'
 import { StatusCodes } from 'http-status-codes'
 
-const customLogin = catchAsync(async (req: Request, res: Response) => {
-  const { ...loginData } = req.body
-
-  const result = await CustomAuthServices.customLogin(loginData)
-  const {status, message, accessToken, refreshToken, role} = result
-
+const sendLoginResponse = (
+  res: Response,
+  result: Awaited<ReturnType<typeof CustomAuthServices.employeeLogin>>,
+) => {
+  const { status, message, accessToken, refreshToken, role } = result
   sendResponse(res, {
     statusCode: status,
     success: true,
     message: message,
-    data: {accessToken, refreshToken, role},
+    data: { accessToken, refreshToken, role },
   })
+}
+
+const employeeLogin = catchAsync(async (req: Request, res: Response) => {
+  const { ...loginData } = req.body
+  const result = await CustomAuthServices.employeeLogin(loginData)
+  sendLoginResponse(res, result)
+})
+
+const companyLogin = catchAsync(async (req: Request, res: Response) => {
+  const { ...loginData } = req.body
+  const result = await CustomAuthServices.companyLogin(loginData)
+  sendLoginResponse(res, result)
+})
+
+const customLogin = catchAsync(async (req: Request, res: Response) => {
+  const { ...loginData } = req.body
+  const result = await CustomAuthServices.customLogin(loginData)
+  sendLoginResponse(res, result)
 })
 
 const adminLogin = catchAsync(async (req: Request, res: Response) => {
@@ -147,6 +164,8 @@ export const CustomAuthController = {
   resetPassword,
   verifyAccount,
   customLogin,
+  employeeLogin,
+  companyLogin,
   getRefreshToken,
   resendOtp,
   changePassword,

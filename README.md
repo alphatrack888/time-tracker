@@ -8,6 +8,7 @@ A robust and scalable Express.js backend template with enterprise-grade features
 
 ### Authentication & Security
 - 🔐 JWT-based authentication
+- Role-scoped login endpoints: see [src/app/modules/auth/AUTH_ENDPOINTS.md](src/app/modules/auth/AUTH_ENDPOINTS.md)
 - 🔑 Social media authentication (Coming soon)
   - Google
   - Facebook (Coming soon)

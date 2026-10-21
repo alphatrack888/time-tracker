@@ -47,6 +47,19 @@ router.post(
 )
 
 router.post(
+  '/employee-login',
+  validateRequest(AuthValidations.loginZodSchema),
+  CustomAuthController.employeeLogin,
+)
+
+router.post(
+  '/company-login',
+  validateRequest(AuthValidations.loginZodSchema),
+  CustomAuthController.companyLogin,
+)
+
+// Deprecated: alias for employee-login (phone-login clients).
+router.post(
   '/custom-login',
   validateRequest(AuthValidations.loginZodSchema),
   CustomAuthController.customLogin,

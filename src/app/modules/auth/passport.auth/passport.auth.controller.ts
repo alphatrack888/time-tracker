@@ -5,15 +5,20 @@ import { IUser } from '../../user/user.interface'
 import { StatusCodes } from 'http-status-codes'
 import { ILoginResponse } from '../../../../interfaces/response'
 import { PassportAuthServices } from './passport.auth.service'
-import { AuthCommonServices } from '../common'
+import { AuthCommonServices, COMPANY_LOGIN_CONTEXT } from '../common'
 
 const login = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user
-  const { deviceToken, password } = req.body
+  const user = req.user as IUser
+  const { deviceToken, password, email } = req.body
 
   const result = await AuthCommonServices.handleLoginLogic(
-    { deviceToken: deviceToken, password: password },
-    user as IUser,
+    {
+      deviceToken: deviceToken,
+      password: password,
+      email: email ?? user.email,
+    },
+    user,
+    COMPANY_LOGIN_CONTEXT,
   )
   const {status, message, accessToken, refreshToken, role} = result
 
