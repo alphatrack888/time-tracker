@@ -10,7 +10,13 @@ import { emailTemplate } from '../../../../shared/emailTemplate'
 import cryptoToken, { generateOtp } from '../../../../utils/crypto'
 import bcrypt from 'bcrypt'
 import { ILoginData } from '../../../../interfaces/auth'
-import { AuthCommonServices, authResponse } from '../common'
+import {
+  AuthCommonServices,
+  authResponse,
+  EMPLOYEE_LOGIN_CONTEXT,
+  COMPANY_LOGIN_CONTEXT,
+  LoginContext,
+} from '../common'
 import { jwtHelper } from '../../../../helpers/jwtHelper'
 import { JwtPayload } from 'jsonwebtoken'
 import { IUser } from '../../user/user.interface'
@@ -102,7 +108,10 @@ const createUser = async (user:JwtPayload,payload: IUser) => {
 
 
 
-const customLogin = async (payload: ILoginData):Promise<IAuthResponse> => {
+const loginWithAllowedRoles = async (
+  payload: ILoginData,
+  loginContext: LoginContext,
+): Promise<IAuthResponse> => {
   const { email, phone } = payload
   const query = email ? { email: email.toLowerCase().trim() } : { phone: phone }
 
@@ -119,10 +128,18 @@ const customLogin = async (payload: ILoginData):Promise<IAuthResponse> => {
     )
   }
 
-  const result = await AuthCommonServices.handleLoginLogic(payload, isUserExist)
-
-  return result
+  return AuthCommonServices.handleLoginLogic(payload, isUserExist, loginContext)
 }
+
+const employeeLogin = async (payload: ILoginData): Promise<IAuthResponse> =>
+  loginWithAllowedRoles(payload, EMPLOYEE_LOGIN_CONTEXT)
+
+const companyLogin = async (payload: ILoginData): Promise<IAuthResponse> =>
+  loginWithAllowedRoles(payload, COMPANY_LOGIN_CONTEXT)
+
+/** @deprecated Use employeeLogin; kept for phone-login clients. */
+const customLogin = async (payload: ILoginData): Promise<IAuthResponse> =>
+  employeeLogin(payload)
 
 
 const adminLogin = async (payload: ILoginData):Promise<IAuthResponse> => {
@@ -385,6 +402,12 @@ const socialLogin = async (appId: string, deviceToken: string):Promise<IAuthResp
     appId,
     status: { $in: [USER_STATUS.ACTIVE, USER_STATUS.RESTRICTED] },
   })
+  if (isUserExist && isUserExist.role !== USER_ROLES.EMPLOYEES) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      EMPLOYEE_LOGIN_CONTEXT.wrongPortalMessage,
+    )
+  }
   if (!isUserExist) {
     const createdUser = await User.create({
       appId,
@@ -627,6 +650,8 @@ export const CustomAuthServices = {
   resetPassword,
   verifyAccount,
   customLogin,
+  employeeLogin,
+  companyLogin,
   getRefreshToken,
   socialLogin,
   resendOtpToPhoneOrEmail,

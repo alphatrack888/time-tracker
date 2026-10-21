@@ -32,7 +32,7 @@ describe('Login (Phase 1: deviceToken now goes to DeviceToken collection, not Us
 
   it('registers the submitted deviceToken into the DeviceToken collection and leaves User.deviceToken unset', async () => {
     const res = await request(app)
-      .post('/api/v1/auth/custom-login')
+      .post('/api/v1/auth/employee-login')
       .send({ email, password, deviceToken: 'login-time-fcm-token' })
 
     expect(res.status).toBe(200)
@@ -48,7 +48,7 @@ describe('Login (Phase 1: deviceToken now goes to DeviceToken collection, not Us
 
   it('logs in successfully even without a deviceToken in the payload', async () => {
     const res = await request(app)
-      .post('/api/v1/auth/custom-login')
+      .post('/api/v1/auth/employee-login')
       .send({ email, password })
 
     expect(res.status).toBe(200)

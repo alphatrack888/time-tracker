@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
 import { ILoginData } from '../../../interfaces/auth'
 import ApiError from '../../../errors/ApiError'
-import { USER_STATUS } from '../../../enum/user'
+import { USER_ROLES, USER_STATUS } from '../../../enum/user'
 import { User } from '../user/user.model'
 import { AuthHelper } from './auth.helper'
 import { generateOtp } from '../../../utils/crypto'
@@ -12,8 +12,36 @@ import { dispatchEmail } from '../../../helpers/appEvents'
 import { DeviceTokenServices } from '../devicetoken/devicetoken.service'
 import { logger } from '../../../shared/logger'
 
+export type LoginContext = {
+  allowedRoles: string[]
+  wrongPortalMessage: string
+}
 
-const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise<IAuthResponse> => {
+export const EMPLOYEE_LOGIN_CONTEXT: LoginContext = {
+  allowedRoles: [USER_ROLES.EMPLOYEES],
+  wrongPortalMessage:
+    'This account must sign in from the company dashboard.',
+}
+
+export const COMPANY_LOGIN_CONTEXT: LoginContext = {
+  allowedRoles: [USER_ROLES.COMPANY],
+  wrongPortalMessage: 'This account must use the AlphaTrack mobile app.',
+}
+
+export const assertRoleAllowed = (
+  role: string,
+  loginContext: LoginContext,
+): void => {
+  if (!loginContext.allowedRoles.includes(role)) {
+    throw new ApiError(StatusCodes.FORBIDDEN, loginContext.wrongPortalMessage)
+  }
+}
+
+const handleLoginLogic = async (
+  payload: ILoginData,
+  isUserExist: IUser,
+  loginContext?: LoginContext,
+): Promise<IAuthResponse> => {
   const { authentication, verified, status, password } = isUserExist
 
   const { restrictionLeftAt, wrongLoginAttempts } = authentication
@@ -47,6 +75,10 @@ const handleLoginLogic = async (payload: ILoginData, isUserExist: IUser):Promise
       StatusCodes.BAD_REQUEST,
       'Incorrect password, please try again.',
     )
+  }
+
+  if (loginContext) {
+    assertRoleAllowed(isUserExist.role, loginContext)
   }
 
   if (!verified) {
