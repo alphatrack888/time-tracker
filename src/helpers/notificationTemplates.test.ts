@@ -31,6 +31,34 @@ describe('renderNotificationTemplate (Phase 4: bilingual notification copy)', ()
     expect(de.body).toContain('casual')
   })
 
+  it('describes a forgotten clock-out as an open session and names the project when present', () => {
+    const named = renderNotificationTemplate('forgotClockOut', 'en', {
+      date: '2026-10-20',
+      thresholdHours: 12,
+      projectTitle: 'rewe',
+    })
+    const unnamed = renderNotificationTemplate('forgotClockOut', 'en', {
+      date: '2026-10-20',
+      thresholdHours: 12,
+    })
+    const namedDe = renderNotificationTemplate('forgotClockOut', 'de', {
+      date: '2026-10-20',
+      thresholdHours: 12,
+      projectTitle: 'rewe',
+    })
+
+    expect(named.title).toBe('Did you forget to clock out?')
+    expect(named.body).toContain('rewe')
+    expect(named.body).toContain('still open')
+    expect(named.body).toContain('started more than 12 hours ago')
+    expect(named.body).not.toContain('after 12+')
+    expect(unnamed.body).toContain('Your time session from 2026-10-20 is still open')
+    expect(unnamed.body).not.toContain('rewe')
+    expect(namedDe.body).toContain('rewe')
+    expect(namedDe.body).toContain('noch offen')
+    expect(namedDe.body).toContain('vor mehr als 12 Stunden gestartet')
+  })
+
   it('translates the dynamic leave status word, not just the surrounding sentence', () => {
     const approvedEn = renderNotificationTemplate('leaveRequestStatusChanged', 'en', { status: 'approved', from: 'Jan 1', to: 'Jan 2' })
     const approvedDe = renderNotificationTemplate('leaveRequestStatusChanged', 'de', { status: 'approved', from: 'Jan 1', to: 'Jan 2' })

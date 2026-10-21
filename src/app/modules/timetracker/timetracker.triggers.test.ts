@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { runForgotClockOutSweep, runDailyOvertimeSweep } from './timetracker.triggers'
 import { TimeSession } from './timetracker.model'
+import { Project } from '../project/project.model'
 import { Notification } from '../notifications/notifications.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
@@ -100,6 +101,32 @@ describe('runForgotClockOutSweep (Phase 3, checker built now — cron wiring is 
     await runForgotClockOutSweep(new Date('2026-01-10T22:00:00.000Z'), 12)
 
     expect(await Notification.countDocuments({ to: employee._id })).toBe(1)
+  })
+
+  it('names the project and describes an open session, not hours worked', async () => {
+    const employee = await User.create({
+      name: 'Project Session Employee',
+      email: 'project-session@example.com',
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const project = await Project.create({ title: 'rewe' })
+    await TimeSession.create({
+      user: employee._id,
+      project: project._id,
+      startTime: new Date('2026-01-10T06:00:00.000Z'),
+      status: 'active',
+      date: '2026-01-10',
+    })
+
+    await runForgotClockOutSweep(new Date('2026-01-10T20:00:00.000Z'), 12)
+
+    const notification = await Notification.findOne({ to: employee._id })
+    expect(notification?.body).toContain('rewe')
+    expect(notification?.body).toContain('still open')
+    expect(notification?.body).not.toContain('after 12+')
   })
 })
 

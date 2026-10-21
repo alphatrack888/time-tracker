@@ -15,6 +15,12 @@ router.post(
   TimeTrackerController.startTimer
 );
 
+router.get(
+  '/open',
+  auth(USER_ROLES.EMPLOYEES),
+  TimeTrackerController.getOpenSessions
+);
+
 router.post(
   '/pause/:sessionId',
 
