@@ -117,6 +117,9 @@ const stopTimer = async (user: JwtPayload, sessionId: string, location?: { lat: 
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 
+/** Same daily allowance as the overtime alert (`DAILY_OVERTIME_THRESHOLD_HOURS`). */
+const DAILY_STANDARD_HOURS = Number(process.env.DAILY_OVERTIME_THRESHOLD_HOURS) || 8
+
 const formatHoursMinutes = (hours: number) => {
   const totalMinutes = Math.max(0, Math.round(hours * 60))
   const h = Math.floor(totalMinutes / 60)
@@ -156,7 +159,6 @@ const getDailySummary = async (
 
   const sessions = await TimeSession.find(query).populate('project', 'title').lean()
 
-  let standardPerDay = 8
   if (projectId) {
     const project = await Project.findById(projectId).lean()
     if (!project) {
@@ -165,11 +167,13 @@ const getDailySummary = async (
         'Something went wrong, please try again with valid project and session id.',
       )
     }
-    standardPerDay = project.projectTime || 8
   }
 
+  // project.projectTime is the project span, not a daily cap. Every summary
+  // uses the same allowance: 8 hours (or DAILY_OVERTIME_THRESHOLD_HOURS) per
+  // distinct session date. The project id only filters which sessions count.
   const distinctDates = new Set(sessions.map((s) => s.date)).size
-  const standardHours = projectId ? standardPerDay : 8 * distinctDates
+  const standardHours = DAILY_STANDARD_HOURS * distinctDates
 
   const totalTime = sessions.reduce((sum, s) => sum + (s.totalTime || 0), 0) / (1000 * 60 * 60)
   const overtime = Math.max(totalTime - standardHours, 0)

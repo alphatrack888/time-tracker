@@ -148,6 +148,73 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     expect(result.totalBreakInHoursFormatted).toBe('0h 30m')
   })
 
+  it('uses 8 hours per date when projectTime is the project span', async () => {
+    const employee = await User.create({
+      name: 'Span Overtime Employee',
+      email: `summary-span-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const project = await Project.create({
+      title: 'Long Project',
+      company: employee._id,
+      projectTime: 720,
+    })
+    await TimeSession.create({
+      user: employee._id,
+      project: project._id,
+      startTime: new Date('2026-05-01T08:00:00.000Z'),
+      endTime: new Date('2026-05-01T18:00:00.000Z'),
+      totalTime: 10 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-05-01',
+    })
+
+    const result = await TimeTrackerService.getDailySummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { date: '2026-05-01', project: project._id.toString() },
+    )
+    expect(result.overtime).toBe('2.00')
+    expect(result.overtimeInHoursFormatted).toBe('2h 0m')
+  })
+
+  it('allows 8 hours for each date in a project-scoped range', async () => {
+    const employee = await User.create({
+      name: 'Range Overtime Employee',
+      email: `summary-range-ot-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const project = await Project.create({
+      title: 'Range Project',
+      company: employee._id,
+      projectTime: 720,
+    })
+    for (const day of ['2026-05-01', '2026-05-02']) {
+      await TimeSession.create({
+        user: employee._id,
+        project: project._id,
+        startTime: new Date(`${day}T08:00:00.000Z`),
+        endTime: new Date(`${day}T17:00:00.000Z`),
+        totalTime: 9 * 60 * 60 * 1000,
+        status: 'stopped',
+        date: day,
+      })
+    }
+
+    const result = await TimeTrackerService.getDailySummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { from: '2026-05-01', to: '2026-05-02', project: project._id.toString() },
+    )
+    expect(result.totalTime).toBe('18.00')
+    expect(result.overtime).toBe('2.00')
+    expect(result.overtimeInHoursFormatted).toBe('2h 0m')
+  })
+
   it('returns an empty sessions array when none match (does not 400)', async () => {
     const employee = await User.create({
       name: 'Empty Summary Employee',
