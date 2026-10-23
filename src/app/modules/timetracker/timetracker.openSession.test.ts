@@ -138,8 +138,10 @@ describe('TimeTrackerService.getOpenSessions', () => {
       newer._id.toString(),
     ])
     expect(open[0].elapsedMs).toBe(90_000)
+    expect(open[0].pauseStartedAt).toEqual(new Date('2026-06-01T09:01:30.000Z'))
     expect(open[0].project).toEqual({ id: project._id.toString(), title: 'rewe' })
     expect(open[1].project).toBeNull()
+    expect(open[1].pauseStartedAt).toBeNull()
     // 60s already committed, plus 30 minutes since the last pause ended.
     expect(open[1].elapsedMs).toBe(60_000 + 30 * 60 * 1000)
   })

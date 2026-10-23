@@ -96,7 +96,10 @@ describe('sendNotification respects notification preferences (Phase 4)', () => {
 
     await sendNotification({ from, to: to.toString(), title: 'Ad-hoc', body: 'no category on this one' })
 
-    expect(await Notification.findOne({ to })).not.toBeNull()
+    const notification = await Notification.findOne({ to })
+    expect(notification).not.toBeNull()
+    expect(notification?.translations?.english?.title).toBe('Ad-hoc')
+    expect(notification?.translations?.german?.title).toBeUndefined()
   })
 })
 
@@ -122,6 +125,10 @@ describe('sendNotification resolves the recipient\'s language for templated cont
 
     const notification = await Notification.findOne({ to: recipient._id })
     expect(notification?.title).toBe('Sie haben eine neue Abrechnung erhalten')
+    expect(notification?.translations?.english?.title).toBe('You have received a new payrole')
+    expect(notification?.translations?.german?.title).toBe('Sie haben eine neue Abrechnung erhalten')
+    expect(notification?.translations?.arabic?.title).toBe('لقد استلمت كشف راتب جديد')
+    expect(notification?.translations?.romanian?.title).toBe('Ai primit o nouă fișă de plată')
   })
 
   it('falls back to English when the recipient has no language set', async () => {

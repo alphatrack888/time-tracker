@@ -11,6 +11,8 @@ import {
   NotificationCategory,
   NotificationKind,
   renderNotificationTemplate,
+  renderNotificationTranslations,
+  NotificationTranslations,
 } from './notificationTemplates'
 
 type BasePayload = {
@@ -53,14 +55,24 @@ type LiteralPayload = BasePayload & {
 
 export type SendNotificationPayload = TemplatedPayload | LiteralPayload
 
-const resolveContent = async (payload: SendNotificationPayload): Promise<{ title: string; body: string; category?: NotificationCategory }> => {
+const resolveContent = async (payload: SendNotificationPayload): Promise<{ title: string; body: string; translations: NotificationTranslations | { english: { title: string; body: string } }; category?: NotificationCategory }> => {
   if (payload.kind) {
     const category = KIND_CATEGORY[payload.kind]
     const recipient = await User.findById(payload.to).select('language').lean()
     const { title, body } = renderNotificationTemplate(payload.kind, recipient?.language, payload.data)
-    return { title, body, category }
+    return {
+      title,
+      body,
+      translations: renderNotificationTranslations(payload.kind, payload.data),
+      category,
+    }
   }
-  return { title: payload.title, body: payload.body, category: payload.category }
+  return {
+    title: payload.title,
+    body: payload.body,
+    translations: { english: { title: payload.title, body: payload.body } },
+    category: payload.category,
+  }
 }
 
 /**
@@ -82,7 +94,7 @@ const resolveContent = async (payload: SendNotificationPayload): Promise<{ title
  */
 export const sendNotification = async (payload: SendNotificationPayload) => {
   const { from, to, idempotencyKey } = payload
-  const { title, body, category } = await resolveContent(payload)
+  const { title, body, translations, category } = await resolveContent(payload)
 
   // Fetched once up front (not re-fetched before the push step below) —
   // one preference lookup covers both the category gate and the pushEnabled
@@ -106,6 +118,7 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
       to,
       title,
       body,
+      translations,
       isRead: false,
       ...(category && { category }),
       ...(idempotencyKey && { idempotencyKey }),

@@ -5,10 +5,43 @@ import { Types } from 'mongoose'
 import { Notification } from './notifications.model'
 import { IPaginationOptions } from '../../../interfaces/pagination'
 import { paginationHelper } from '../../../helpers/paginationHelper'
+import {
+  AppNotificationLocale,
+  normalizeNotificationLocale,
+} from '../../../helpers/notificationTemplates'
 
+type TranslationPair = { title?: string; body?: string }
 
+const pairHasText = (pair: TranslationPair | null | undefined): pair is TranslationPair => {
+  if (!pair) return false
+  return Boolean(pair.title) || Boolean(pair.body)
+}
 
-const getNotifications = async (user: JwtPayload, paginationOptions: IPaginationOptions) => {
+/** Picks one sentence for the list. Does not change the stored row. */
+export const notificationTextForLocale = (
+  row: {
+    title?: string
+    body?: string
+    translations?: Partial<Record<AppNotificationLocale, TranslationPair>> | null
+  },
+  locale: AppNotificationLocale,
+): { title?: string; body?: string } => {
+  const translations = row.translations ?? undefined
+  const chosen = translations?.[locale]
+  const english = translations?.english
+  const pair = pairHasText(chosen) ? chosen : pairHasText(english) ? english : undefined
+  if (!pair) return { title: row.title, body: row.body }
+  return {
+    title: pair.title || row.title,
+    body: pair.body || row.body,
+  }
+}
+
+const getNotifications = async (
+  user: JwtPayload,
+  paginationOptions: IPaginationOptions,
+  localeQuery?: unknown,
+) => {
   const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions)
   const [result, total, unreadCount] = await Promise.all([
     Notification.find({ to: user.authId })
@@ -26,6 +59,7 @@ const getNotifications = async (user: JwtPayload, paginationOptions: IPagination
     Notification.countDocuments({ to: user.authId, isRead: false }),
   ])
 
+    const locale = normalizeNotificationLocale(localeQuery)
     return {
       meta: {
         page,
@@ -34,7 +68,11 @@ const getNotifications = async (user: JwtPayload, paginationOptions: IPagination
         totalPages: Math.ceil(total / limit),
         unreadCount,
       },
-      data: result,
+      data: result.map(row => {
+        const text = notificationTextForLocale(row, locale)
+        const { translations: _translations, ...rest } = row
+        return { ...rest, title: text.title, body: text.body }
+      }),
     }
 }
 
