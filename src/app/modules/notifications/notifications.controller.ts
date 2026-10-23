@@ -8,7 +8,7 @@ import { paginationFields } from '../../../interfaces/pagination'
 
 const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
   const paginationOptions = pick(req.query, paginationFields)
-  const result = await NotificationServices.getNotifications(req.user!,paginationOptions)
+  const result = await NotificationServices.getNotifications(req.user!, paginationOptions, req.query.locale)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,

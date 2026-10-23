@@ -1,4 +1,4 @@
-import { renderNotificationTemplate, KIND_CATEGORY, MANDATORY_CATEGORIES, NotificationKind } from './notificationTemplates'
+import { renderNotificationTemplate, renderNotificationTranslations, KIND_CATEGORY, MANDATORY_CATEGORIES, NotificationKind, APP_NOTIFICATION_LOCALES } from './notificationTemplates'
 
 describe('renderNotificationTemplate (Phase 4: bilingual notification copy)', () => {
   it('renders English content for a known kind', () => {
@@ -75,6 +75,43 @@ describe('renderNotificationTemplate (Phase 4: bilingual notification copy)', ()
       expect(() => renderNotificationTemplate(kind, 'en', { status: 'approved', leaveType: 'casual', remaining: 1 })).not.toThrow()
       expect(() => renderNotificationTemplate(kind, 'de', { status: 'approved', leaveType: 'casual', remaining: 1 })).not.toThrow()
     }
+  })
+
+  it('renders every app locale, keeping names and dates in the sentence', () => {
+    const sample = {
+      status: 'approved',
+      leaveType: 'casual',
+      remaining: 1,
+      employeeName: 'Anna',
+      from: 'Jan 1',
+      to: 'Jan 2',
+      projectTitle: 'rewe',
+      startDate: 'Jan 1',
+      endDate: 'Jan 2',
+      companyName: 'Acme',
+      hoursWorked: 10,
+      thresholdHours: 8,
+      date: '2026-10-20',
+      failureCount: 2,
+      trialEndDate: 'Jan 9',
+      reportLabel: 'weekly',
+      count: 3,
+    }
+    const allKinds = Object.keys(KIND_CATEGORY) as NotificationKind[]
+    for (const kind of allKinds) {
+      const translations = renderNotificationTranslations(kind, sample)
+      for (const locale of APP_NOTIFICATION_LOCALES) {
+        expect(translations[locale].title.length).toBeGreaterThan(0)
+        expect(translations[locale].body.length).toBeGreaterThan(0)
+      }
+    }
+
+    const leave = renderNotificationTranslations('leaveRequestSubmitted', sample)
+    expect(leave.english.title).toContain('Anna')
+    expect(leave.arabic.title).toContain('Anna')
+    expect(leave.romanian.body).toContain('Jan 1')
+    expect(leave.arabic.title).not.toBe(leave.english.title)
+    expect(leave.romanian.title).not.toBe(leave.english.title)
   })
 
   it('every kind maps to exactly one category, and only "account" is mandatory', () => {

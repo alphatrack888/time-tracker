@@ -174,6 +174,99 @@ describe('GET /api/v1/notifications — meta.unreadCount (Phase 12)', () => {
   })
 })
 
+describe('GET /api/v1/notifications locale', () => {
+  const translations = {
+    english: { title: 'English title', body: 'English body' },
+    german: { title: 'German title', body: 'German body' },
+    arabic: { title: 'Arabic title', body: 'Arabic body' },
+    romanian: { title: 'Romanian title', body: 'Romanian body' },
+  }
+
+  it('returns the requested locale and omits the translation map', async () => {
+    const { authId, token } = signTestToken({ role: USER_ROLES.EMPLOYEES })
+    await Notification.create({
+      to: authId,
+      from: authId,
+      title: 'Stored title',
+      body: 'Stored body',
+      translations,
+      isRead: false,
+    })
+
+    const res = await request(app)
+      .get('/api/v1/notifications?locale=arabic')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.data[0].title).toBe('Arabic title')
+    expect(res.body.data.data[0].body).toBe('Arabic body')
+    expect(res.body.data.data[0].translations).toBeUndefined()
+
+    const stored = await Notification.findOne({ to: authId })
+    expect(stored?.title).toBe('Stored title')
+    expect(stored?.translations?.arabic?.title).toBe('Arabic title')
+  })
+
+  it('defaults a missing or unknown locale to English', async () => {
+    const { authId, token } = signTestToken({ role: USER_ROLES.EMPLOYEES })
+    await Notification.create({
+      to: authId,
+      from: authId,
+      title: 'Stored title',
+      body: 'Stored body',
+      translations,
+      isRead: false,
+    })
+
+    const missing = await request(app)
+      .get('/api/v1/notifications')
+      .set('Authorization', `Bearer ${token}`)
+    const unknown = await request(app)
+      .get('/api/v1/notifications?locale=fr')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(missing.body.data.data[0].title).toBe('English title')
+    expect(unknown.body.data.data[0].title).toBe('English title')
+  })
+
+  it('returns the stored sentence for an older row that has no translations', async () => {
+    const { authId, token } = signTestToken({ role: USER_ROLES.EMPLOYEES })
+    await Notification.create({
+      to: authId,
+      from: authId,
+      title: 'Stored German',
+      body: 'Gespeichert',
+      isRead: false,
+    })
+
+    const res = await request(app)
+      .get('/api/v1/notifications?locale=arabic')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.body.data.data[0].title).toBe('Stored German')
+    expect(res.body.data.data[0].body).toBe('Gespeichert')
+  })
+
+  it('falls back to English when the requested locale was not saved', async () => {
+    const { authId, token } = signTestToken({ role: USER_ROLES.EMPLOYEES })
+    await Notification.create({
+      to: authId,
+      from: authId,
+      title: 'Ad-hoc',
+      body: 'no category on this one',
+      translations: { english: { title: 'Ad-hoc', body: 'no category on this one' } },
+      isRead: false,
+    })
+
+    const res = await request(app)
+      .get('/api/v1/notifications?locale=german')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.body.data.data[0].title).toBe('Ad-hoc')
+    expect(res.body.data.data[0].body).toBe('no category on this one')
+  })
+})
+
 describe('GET /api/v1/notifications — rate limiting (Phase 14 audit)', () => {
   it('is actually rate-limited, not just theoretically covered by unused middleware code', async () => {
     const { token } = signTestToken({ role: USER_ROLES.EMPLOYEES })

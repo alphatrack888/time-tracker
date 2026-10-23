@@ -6,6 +6,12 @@ export type INotification = {
   from: Types.ObjectId
   title: string
   body: string
+  /**
+   * Title and body for each app language, written when the notification is
+   * created. The list request picks one. Absent on rows saved before this
+   * field existed, and a literal send only fills `english`.
+   */
+  translations?: Partial<Record<'english' | 'german' | 'arabic' | 'romanian', { title?: string; body?: string }>>
   isRead: boolean
   /**
    * The notification's preference category (see notificationTemplates.ts's
