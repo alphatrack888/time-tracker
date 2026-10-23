@@ -160,8 +160,19 @@ const getOpenSessions = async (user: JwtPayload, now: Date = new Date()) => {
         ? { id: projectId, title: project?.title || '' }
         : null,
       elapsedMs: elapsedMsForSession(session, now),
+      pauseStartedAt: pauseStartedAtForSession(session),
     }
   })
+}
+
+/** Start of the open pause. Absent unless the session is paused on a pause with no end. */
+const pauseStartedAtForSession = (
+  session: Pick<ITimeSession, 'status' | 'pauses'>,
+) => {
+  if (session.status !== 'paused') return null
+  const last = session.pauses?.[session.pauses.length - 1]
+  if (!last?.start || last.end) return null
+  return last.start
 }
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
