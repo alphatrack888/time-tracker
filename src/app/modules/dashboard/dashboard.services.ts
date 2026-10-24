@@ -121,7 +121,7 @@ const getCompanyGeneralStats = async(user:JwtPayload) => {
     const [totalEmployees, totalProjects, totalCompletedProjects] = await Promise.all([
         User.countDocuments({role: USER_ROLES.EMPLOYEES, company:user.authId}),
         Project.countDocuments({company: user.authId}),
-        Project.countDocuments({company: user.authId, status: 'completed'}),
+        Project.countDocuments({company: user.authId, endDate: {$lt: new Date()}}),
 
     ])
     return {

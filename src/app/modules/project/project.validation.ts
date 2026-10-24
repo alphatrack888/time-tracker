@@ -37,4 +37,15 @@ export const ProjectValidations = {
       employees: z.array(z.string()).optional(),
     }),
   }),
+
+  setDailyAllocation: z.object({
+    params: z.object({
+      id: z.string(),
+    }),
+    body: z.object({
+      employee: z.string(),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+      hours: z.number().min(0),
+    }),
+  }),
 };

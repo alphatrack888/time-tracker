@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { IPackageFilterables, IProject } from './project.interface';
 import { Project } from './project.model';
+import { DailyAllocation } from './dailyAllocation.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
@@ -11,6 +12,30 @@ import { USER_ROLES } from '../../../enum/user';
 import { Types } from 'mongoose';
 import { dispatchNotification } from '../../../helpers/appEvents';
 import { emitEvent } from '../../../helpers/socketInstances';
+import { projectStatusForDates, statusFilterForDates } from './projectStatus';
+
+type ProjectLike = {
+  startDate?: Date | string | null
+  endDate?: Date | string | null
+  status?: string | null
+  toObject?: () => Record<string, unknown>
+}
+
+/** Response copy with the date-based status. Does not save the document. */
+const presentProject = <T>(project: T, now: Date = new Date()): T => {
+  if (project == null || typeof project !== 'object') return project
+  const source = project as ProjectLike
+  const plain = typeof source.toObject === 'function'
+    ? source.toObject()
+    : { ...(project as Record<string, unknown>) }
+  plain.status = projectStatusForDates(
+    plain.startDate as Date | string | null | undefined,
+    plain.endDate as Date | string | null | undefined,
+    now,
+    plain.status as string | null | undefined,
+  )
+  return plain as T
+}
 
 
 const createProject = async (user: JwtPayload, payload: IProject) => {
@@ -35,15 +60,18 @@ const createProject = async (user: JwtPayload, payload: IProject) => {
       'Failed to create Project, please try again with valid data.',
     );
 
-   
-
-  return result;
+  return presentProject(result);
 };
 
 const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables, pagination: IPaginationOptions) => {
-  const {searchTerm, ...filterData} = filterables;
+  const {searchTerm, status, ...filterData} = filterables;
   const {page, skip, limit, sortBy, sortOrder} = paginationHelper.calculatePagination(pagination);
+  const now = new Date();
   const andConditions = [];
+  if (status) {
+    const statusQuery = statusFilterForDates(status, now);
+    if (statusQuery) andConditions.push(statusQuery);
+  }
   if(searchTerm){
     andConditions.push({
       $or: projectSearchableFields.map((field) => ({
@@ -97,7 +125,7 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: result,
+    data: result.map(row => presentProject(row, now)),
   };
 };
 
@@ -132,7 +160,7 @@ const getSingleProject = async (user: JwtPayload, id: string) => {
       'Requested project not found, please try again with valid id',
     );
   }
-  return result;
+  return presentProject(result);
 };
 
 const updateProject = async (
@@ -198,13 +226,14 @@ const updateProject = async (
       runValidators: true,
     },
   )
+  const presented = presentProject(updatedProject)
 
 
 
   // Only proceed if employees field is being updated
   if (!payload.employees || !Array.isArray(payload.employees)) {
-    emitEvent(`updatedProject::${user.authId}`, updatedProject?.toObject())
-    return updatedProject;
+    emitEvent(`updatedProject::${user.authId}`, presented)
+    return presented;
   }
   // Normalize IDs to strings for comparison
   const existingEmployees = new Set(
@@ -216,12 +245,16 @@ const updateProject = async (
   
 
   //only proceed if employee has been changed removed or added not by size check array element
-  if(isSetEqual(existingEmployees, newEmployees)) return updatedProject;
+  if(isSetEqual(existingEmployees, newEmployees)) return presented;
 
 
   // Find differences
   const addedEmployees = [...newEmployees].filter(emp => !existingEmployees.has(emp));
   const removedEmployees = [...existingEmployees].filter(emp => !newEmployees.has(emp));
+
+  if (removedEmployees.length > 0) {
+    await DailyAllocation.deleteMany({ project: id, employee: { $in: removedEmployees } })
+  }
 
   // Prepare notifications
   const notificationsData = [];
@@ -259,10 +292,10 @@ const updateProject = async (
   //emit the project for both added and removed employees
   if (addedEmployees.length > 0 || removedEmployees.length > 0) {
     addedEmployees.forEach(employeeId => {
-      emitEvent(`newProject::${employeeId}`, updatedProject?.toObject())
+      emitEvent(`newProject::${employeeId}`, presented)
     })
     removedEmployees.forEach(employeeId => {
-      emitEvent(`removedProject::${employeeId}`, updatedProject?.toObject())
+      emitEvent(`removedProject::${employeeId}`, presented)
     })
   }
   
@@ -283,7 +316,7 @@ const updateProject = async (
     })
   })
 
-  return updatedProject;
+  return presented;
 };
 
 const deleteProject = async (user: JwtPayload, id: string) => {
@@ -306,6 +339,7 @@ const deleteProject = async (user: JwtPayload, id: string) => {
     );
   }
 
+ await DailyAllocation.deleteMany({ project: id })
  const deleteProject = await Project.findByIdAndDelete(id);
   if(!deleteProject){
     throw new ApiError(
