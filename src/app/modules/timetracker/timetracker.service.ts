@@ -6,7 +6,8 @@ import { JwtPayload } from 'jsonwebtoken';
 import { Types } from 'mongoose';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
-import { Project } from '../project/project.model';
+import { Project } from '../project/project.model'
+import { DailyAllocation } from '../project/dailyAllocation.model';
 import { User } from '../user/user.model';
 import {
   generateComprehensiveTimesheetReport,
@@ -253,9 +254,18 @@ const getDailySummary = async (
 
   const totalBreakInHours = totalBreakTimeMs / (1000 * 60 * 60)
 
+  const allocationQuery: Record<string, unknown> = {
+    employee: user.authId,
+    date: query.date,
+  }
+  if (projectId) allocationQuery.project = new Types.ObjectId(projectId)
+  const allocations = await DailyAllocation.find(allocationQuery).select('hours').lean()
+  const plannedHours = allocations.reduce((sum, row) => sum + (Number(row.hours) || 0), 0)
+
   return {
     totalTime: totalTime.toFixed(2),
     overtime: overtime.toFixed(2),
+    plannedHours: plannedHours.toFixed(2),
     totalBreakInHours: totalBreakInHours.toFixed(2),
     totalBreakInHoursFormatted: formatHoursMinutes(totalBreakInHours),
     overtimeInHoursFormatted: formatHoursMinutes(overtime),

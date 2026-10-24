@@ -2,6 +2,7 @@ import { JwtPayload } from 'jsonwebtoken'
 import { TimeTrackerService } from './timetracker.service'
 import { TimeSession } from './timetracker.model'
 import { Project } from '../project/project.model'
+import { DailyAllocation } from '../project/dailyAllocation.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
 
@@ -178,6 +179,7 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     )
     expect(result.overtime).toBe('2.00')
     expect(result.overtimeInHoursFormatted).toBe('2h 0m')
+    expect(result.plannedHours).toBe('0.00')
   })
 
   it('allows 8 hours for each date in a project-scoped range', async () => {
@@ -235,6 +237,165 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       { date: '2026-01-10', project: project._id.toString() },
     )
 
+    expect(result.sessions).toEqual([])
+    expect(result.plannedHours).toBe('0.00')
+  })
+
+  it('returns the planned hours for that person and day without changing the 8-hour overtime', async () => {
+    const company = await User.create({
+      name: 'Plan Company',
+      email: `plan-co-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.COMPANY,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const employee = await User.create({
+      name: 'Planned Employee',
+      email: `plan-emp-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const project = await Project.create({
+      title: 'Planned Project',
+      company: company._id,
+      employees: [employee._id],
+      projectTime: 720,
+    })
+    await DailyAllocation.create({
+      company: company._id,
+      employee: employee._id,
+      project: project._id,
+      date: '2026-06-01',
+      hours: 4,
+    })
+    await TimeSession.create({
+      user: employee._id,
+      project: project._id,
+      startTime: new Date('2026-06-01T08:00:00.000Z'),
+      endTime: new Date('2026-06-01T14:00:00.000Z'),
+      totalTime: 6 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-06-01',
+    })
+
+    const result = await TimeTrackerService.getDailySummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { date: '2026-06-01' },
+    )
+    expect(result.totalTime).toBe('6.00')
+    expect(result.plannedHours).toBe('4.00')
+    expect(result.overtime).toBe('0.00')
+  })
+
+  it('sums planned hours across projects on the same day, and a project filter counts only that project', async () => {
+    const company = await User.create({
+      name: 'Sum Company',
+      email: `plan-sum-co-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.COMPANY,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const employee = await User.create({
+      name: 'Sum Employee',
+      email: `plan-sum-emp-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const first = await Project.create({
+      title: 'First Planned',
+      company: company._id,
+      employees: [employee._id],
+      projectTime: 8,
+    })
+    const second = await Project.create({
+      title: 'Second Planned',
+      company: company._id,
+      employees: [employee._id],
+      projectTime: 8,
+    })
+    await DailyAllocation.create({
+      company: company._id,
+      employee: employee._id,
+      project: first._id,
+      date: '2026-06-02',
+      hours: 4,
+    })
+    await DailyAllocation.create({
+      company: company._id,
+      employee: employee._id,
+      project: second._id,
+      date: '2026-06-02',
+      hours: 3,
+    })
+    await TimeSession.create({
+      user: employee._id,
+      project: first._id,
+      startTime: new Date('2026-06-02T08:00:00.000Z'),
+      endTime: new Date('2026-06-02T14:00:00.000Z'),
+      totalTime: 6 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-06-02',
+    })
+
+    const user = { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload
+    const combined = await TimeTrackerService.getDailySummary(user, { date: '2026-06-02' })
+    expect(combined.plannedHours).toBe('7.00')
+    expect(combined.totalTime).toBe('6.00')
+
+    const filtered = await TimeTrackerService.getDailySummary(user, {
+      date: '2026-06-02',
+      project: first._id.toString(),
+    })
+    expect(filtered.plannedHours).toBe('4.00')
+  })
+
+  it('sums planned hours across the dates in a range', async () => {
+    const employee = await User.create({
+      name: 'Range Plan Employee',
+      email: `plan-range-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const project = await Project.create({
+      title: 'Range Plan',
+      company: employee._id,
+      projectTime: 8,
+    })
+    await DailyAllocation.create({
+      company: employee._id,
+      employee: employee._id,
+      project: project._id,
+      date: '2026-06-03',
+      hours: 4,
+    })
+    await DailyAllocation.create({
+      company: employee._id,
+      employee: employee._id,
+      project: project._id,
+      date: '2026-06-04',
+      hours: 3,
+    })
+    await DailyAllocation.create({
+      company: employee._id,
+      employee: employee._id,
+      project: project._id,
+      date: '2026-06-05',
+      hours: 9,
+    })
+
+    const result = await TimeTrackerService.getDailySummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { from: '2026-06-03', to: '2026-06-04' },
+    )
+    expect(result.plannedHours).toBe('7.00')
     expect(result.sessions).toEqual([])
   })
 })

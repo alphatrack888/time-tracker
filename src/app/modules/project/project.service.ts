@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { IPackageFilterables, IProject } from './project.interface';
 import { Project } from './project.model';
+import { DailyAllocation } from './dailyAllocation.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
@@ -251,6 +252,10 @@ const updateProject = async (
   const addedEmployees = [...newEmployees].filter(emp => !existingEmployees.has(emp));
   const removedEmployees = [...existingEmployees].filter(emp => !newEmployees.has(emp));
 
+  if (removedEmployees.length > 0) {
+    await DailyAllocation.deleteMany({ project: id, employee: { $in: removedEmployees } })
+  }
+
   // Prepare notifications
   const notificationsData = [];
 
@@ -334,6 +339,7 @@ const deleteProject = async (user: JwtPayload, id: string) => {
     );
   }
 
+ await DailyAllocation.deleteMany({ project: id })
  const deleteProject = await Project.findByIdAndDelete(id);
   if(!deleteProject){
     throw new ApiError(
