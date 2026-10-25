@@ -90,6 +90,7 @@ describe('renderNotificationTemplate (Phase 4: bilingual notification copy)', ()
       endDate: 'Jan 2',
       companyName: 'Acme',
       hoursWorked: 10,
+      plannedHours: 4,
       thresholdHours: 8,
       date: '2026-10-20',
       failureCount: 2,

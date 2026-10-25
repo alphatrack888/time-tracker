@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
   import { ProjectServices } from './project.service';
-import { setDailyAllocation } from './dailyAllocation.service';
+import { getDailyAllocations, setDailyAllocation } from './dailyAllocation.service';
   import catchAsync from '../../../shared/catchAsync';
   import sendResponse from '../../../shared/sendResponse';
   import { StatusCodes } from 'http-status-codes';
@@ -84,10 +84,21 @@ import { paginationFields } from '../../../interfaces/pagination';
     });
   });
 
+  const getProjectDailyAllocations = catchAsync(async (req: Request, res: Response) => {
+    const result = await getDailyAllocations(req.user!, req.params.id);
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Daily allocations retrieved',
+      data: result,
+    });
+  });
+
   export const ProjectController = {
     createProject,
     updateProject,
     setProjectDailyAllocation,
+    getProjectDailyAllocations,
     getSingleProject,
     getAllProjects,
     deleteProject,

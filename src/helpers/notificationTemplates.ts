@@ -268,39 +268,39 @@ const TEMPLATES: Record<NotificationKind, Record<TemplateLanguage, TemplateFn>> 
     }),
   },
   overtimeEmployeeAlert: {
-    en: ({ hoursWorked, thresholdHours }) => ({
+    en: ({ hoursWorked, plannedHours }) => ({
       title: 'Overtime alert',
-      body: `You've worked ${hoursWorked}h today, over the ${thresholdHours}h daily threshold.`,
+      body: `You've worked ${hoursWorked}h today, past the ${plannedHours}h planned.`,
     }),
-    de: ({ hoursWorked, thresholdHours }) => ({
+    de: ({ hoursWorked, plannedHours }) => ({
       title: 'Überstunden-Hinweis',
-      body: `Sie haben heute ${hoursWorked} Std. gearbeitet, über dem Tagesgrenzwert von ${thresholdHours} Std.`,
+      body: `Sie haben heute ${hoursWorked} Std. gearbeitet, über den geplanten ${plannedHours} Std.`,
     }),
-    ar: ({ hoursWorked, thresholdHours }) => ({
+    ar: ({ hoursWorked, plannedHours }) => ({
       title: 'تنبيه عمل إضافي',
-      body: `لقد عملت ${hoursWorked} س اليوم، فوق الحد اليومي البالغ ${thresholdHours} س.`,
+      body: `لقد عملت ${hoursWorked} س اليوم، بعد الساعات المخططة البالغة ${plannedHours} س.`,
     }),
-    ro: ({ hoursWorked, thresholdHours }) => ({
+    ro: ({ hoursWorked, plannedHours }) => ({
       title: 'Alertă de ore suplimentare',
-      body: `Ai lucrat ${hoursWorked} h astăzi, peste pragul zilnic de ${thresholdHours} h.`,
+      body: `Ai lucrat ${hoursWorked} h astăzi, peste cele ${plannedHours} h planificate.`,
     }),
   },
   overtimeCompanyAlert: {
-    en: ({ employeeName, hoursWorked, thresholdHours }) => ({
+    en: ({ employeeName, hoursWorked, plannedHours }) => ({
       title: `Overtime alert: ${employeeName}`,
-      body: `${employeeName} has worked ${hoursWorked}h today, over the ${thresholdHours}h daily threshold.`,
+      body: `${employeeName} has worked ${hoursWorked}h today, past the ${plannedHours}h planned.`,
     }),
-    de: ({ employeeName, hoursWorked, thresholdHours }) => ({
+    de: ({ employeeName, hoursWorked, plannedHours }) => ({
       title: `Überstunden-Hinweis: ${employeeName}`,
-      body: `${employeeName} hat heute ${hoursWorked} Std. gearbeitet, über dem Tagesgrenzwert von ${thresholdHours} Std.`,
+      body: `${employeeName} hat heute ${hoursWorked} Std. gearbeitet, über den geplanten ${plannedHours} Std.`,
     }),
-    ar: ({ employeeName, hoursWorked, thresholdHours }) => ({
+    ar: ({ employeeName, hoursWorked, plannedHours }) => ({
       title: `تنبيه عمل إضافي: ${employeeName}`,
-      body: `عمل ${employeeName} ${hoursWorked} س اليوم، فوق الحد اليومي البالغ ${thresholdHours} س.`,
+      body: `عمل ${employeeName} ${hoursWorked} س اليوم، بعد الساعات المخططة البالغة ${plannedHours} س.`,
     }),
-    ro: ({ employeeName, hoursWorked, thresholdHours }) => ({
+    ro: ({ employeeName, hoursWorked, plannedHours }) => ({
       title: `Alertă de ore suplimentare: ${employeeName}`,
-      body: `${employeeName} a lucrat ${hoursWorked} h astăzi, peste pragul zilnic de ${thresholdHours} h.`,
+      body: `${employeeName} a lucrat ${hoursWorked} h astăzi, peste cele ${plannedHours} h planificate.`,
     }),
   },
   forgotClockOut: {

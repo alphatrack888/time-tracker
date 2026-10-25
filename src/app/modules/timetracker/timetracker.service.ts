@@ -178,9 +178,6 @@ const pauseStartedAtForSession = (
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 
-/** Same daily allowance as the overtime alert (`DAILY_OVERTIME_THRESHOLD_HOURS`). */
-const DAILY_STANDARD_HOURS = Number(process.env.DAILY_OVERTIME_THRESHOLD_HOURS) || 8
-
 const formatHoursMinutes = (hours: number) => {
   const totalMinutes = Math.max(0, Math.round(hours * 60))
   const h = Math.floor(totalMinutes / 60)
@@ -188,19 +185,123 @@ const formatHoursMinutes = (hours: number) => {
   return `${h}h ${m}m`
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 const inclusiveUtcDays = (from: string, to: string) => {
   const start = Date.parse(`${from}T00:00:00.000Z`)
   const end = Date.parse(`${to}T00:00:00.000Z`)
-  return Math.floor((end - start) / (24 * 60 * 60 * 1000)) + 1
+  return Math.floor((end - start) / DAY_MS) + 1
 }
+
+const utcDateKeyFromMs = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+
+const summaryRange = (from: string, to: string) => {
+  const start = Date.parse(`${from}T00:00:00.000Z`)
+  const end = Date.parse(`${to}T00:00:00.000Z`) + DAY_MS
+  const dates: string[] = []
+  for (let cursor = start; cursor < end; cursor += DAY_MS) dates.push(utcDateKeyFromMs(cursor))
+  return { start, end, dates }
+}
+
+type PauseSpan = { start?: Date | null; end?: Date | null }
+
+type SessionSpan = {
+  startTime: Date
+  endTime?: Date | null
+  pauses?: PauseSpan[] | null
+}
+
+const clipInterval = (start: number, end: number, rangeStart: number, rangeEnd: number) => {
+  const clippedStart = Math.max(start, rangeStart)
+  const clippedEnd = Math.min(end, rangeEnd)
+  return clippedEnd > clippedStart ? ([clippedStart, clippedEnd] as const) : null
+}
+
+const completedPauseIntervals = (pauses: PauseSpan[] | null | undefined) =>
+  (pauses ?? [])
+    .filter((pause): pause is { start: Date; end: Date } => Boolean(pause.start && pause.end))
+    .map(pause => ({ start: new Date(pause.start).getTime(), end: new Date(pause.end).getTime() }))
+    .filter(pause => pause.end > pause.start)
+    .sort((a, b) => a.start - b.start)
+
+/** Work segments. A stopped session runs to endTime. An open session stops at the last pause start. */
+const workIntervals = (session: SessionSpan) => {
+  const start = new Date(session.startTime).getTime()
+  if (!Number.isFinite(start)) return [] as Array<[number, number]>
+  const completed = completedPauseIntervals(session.pauses)
+
+  if (session.endTime) {
+    const end = new Date(session.endTime).getTime()
+    if (!(end > start)) return [] as Array<[number, number]>
+    const segments: Array<[number, number]> = []
+    let cursor = start
+    for (const pause of completed) {
+      const pauseStart = Math.min(Math.max(pause.start, start), end)
+      const pauseEnd = Math.min(Math.max(pause.end, start), end)
+      if (pauseStart > cursor) segments.push([cursor, pauseStart])
+      if (pauseEnd > cursor) cursor = pauseEnd
+    }
+    if (end > cursor) segments.push([cursor, end])
+    return segments
+  }
+
+  const pauseStarts = (session.pauses ?? [])
+    .filter(pause => pause.start)
+    .map(pause => ({
+      start: new Date(pause.start as Date).getTime(),
+      end: pause.end ? new Date(pause.end).getTime() : null,
+    }))
+    .filter(pause => Number.isFinite(pause.start))
+    .sort((a, b) => a.start - b.start)
+
+  const segments: Array<[number, number]> = []
+  let cursor = start
+  for (const pause of pauseStarts) {
+    if (pause.start > cursor) segments.push([cursor, pause.start])
+    if (pause.end == null) break
+    if (pause.end > cursor) cursor = pause.end
+  }
+  return segments
+}
+
+export const overlapInRange = (session: SessionSpan, rangeStart: number, rangeEnd: number) => {
+  const workMsByDate = new Map<string, number>()
+  let workMs = 0
+  for (const [start, end] of workIntervals(session)) {
+    const clipped = clipInterval(start, end, rangeStart, rangeEnd)
+    if (!clipped) continue
+    let cursor = clipped[0]
+    while (cursor < clipped[1]) {
+      const dayEnd = Date.parse(`${utcDateKeyFromMs(cursor)}T00:00:00.000Z`) + DAY_MS
+      const sliceEnd = Math.min(clipped[1], dayEnd)
+      const key = utcDateKeyFromMs(cursor)
+      const slice = sliceEnd - cursor
+      workMsByDate.set(key, (workMsByDate.get(key) ?? 0) + slice)
+      workMs += slice
+      cursor = sliceEnd
+    }
+  }
+
+  let breakMs = 0
+  for (const pause of completedPauseIntervals(session.pauses)) {
+    const clipped = clipInterval(pause.start, pause.end, rangeStart, rangeEnd)
+    if (clipped) breakMs += clipped[1] - clipped[0]
+  }
+
+  return { workMsByDate, workMs, breakMs }
+}
+
+const hourCents = (ms: number) => Math.round((ms / (1000 * 60 * 60)) * 100)
+
+const hoursFromCents = (cents: number) => (cents / 100).toFixed(2)
 
 const getDailySummary = async (
   user: JwtPayload,
   filters: { date?: string; from?: string; to?: string; project?: string },
 ) => {
   const { date, from, to, project: projectId } = filters
-  const query: any = { user: user.authId }
-
+  let rangeFrom: string
+  let rangeTo: string
   if (from && to) {
     if (!DATE_KEY.test(from) || !DATE_KEY.test(to) || from > to) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid date range')
@@ -208,17 +309,28 @@ const getDailySummary = async (
     if (inclusiveUtcDays(from, to) > 31) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Date range cannot exceed 31 days')
     }
-    // Match the stored UTC date string only. Do not OR a startTime window.
-    query.date = { $gte: from, $lte: to }
+    rangeFrom = from
+    rangeTo = to
   } else if (date && DATE_KEY.test(date)) {
-    query.date = date
+    rangeFrom = date
+    rangeTo = date
   } else {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Date is required')
   }
 
+  const range = summaryRange(rangeFrom, rangeTo)
+  const query: Record<string, unknown> = {
+    user: user.authId,
+    startTime: { $lt: new Date(range.end) },
+    $or: [
+      { endTime: { $gte: new Date(range.start) } },
+      { endTime: null },
+      { endTime: { $exists: false } },
+    ],
+  }
   if (projectId) query.project = new Types.ObjectId(projectId)
 
-  const sessions = await TimeSession.find(query).populate('project', 'title').lean()
+  const found = await TimeSession.find(query).populate('project', 'title').lean()
 
   if (projectId) {
     const project = await Project.findById(projectId).lean()
@@ -230,37 +342,38 @@ const getDailySummary = async (
     }
   }
 
-  // project.projectTime is the project span, not a daily cap. Every summary
-  // uses the same allowance: 8 hours (or DAILY_OVERTIME_THRESHOLD_HOURS) per
-  // distinct session date. The project id only filters which sessions count.
-  const distinctDates = new Set(sessions.map((s) => s.date)).size
-  const standardHours = DAILY_STANDARD_HOURS * distinctDates
-
-  const totalTime = sessions.reduce((sum, s) => sum + (s.totalTime || 0), 0) / (1000 * 60 * 60)
-  const overtime = Math.max(totalTime - standardHours, 0)
-
-  const totalBreakTimeMs = sessions.reduce((sum, session) => {
-    if (session.pauses && session.pauses.length > 0) {
-      const sessionBreakTime = session.pauses.reduce((pauseSum, pause) => {
-        if (pause.start && pause.end) {
-          return pauseSum + (new Date(pause.end).getTime() - new Date(pause.start).getTime())
-        }
-        return pauseSum
-      }, 0)
-      return sum + sessionBreakTime
+  // project.projectTime is the project span, not a daily cap. The project id
+  // only filters which sessions count. Summary hours are the part of each
+  // session that falls inside the range, not the stored totalTime.
+  const sessions = []
+  const workMsByDate = new Map<string, number>()
+  let totalBreakTimeMs = 0
+  for (const session of found) {
+    const overlap = overlapInRange(session, range.start, range.end)
+    if (overlap.workMs === 0 && overlap.breakMs === 0) continue
+    sessions.push(session)
+    totalBreakTimeMs += overlap.breakMs
+    for (const [day, ms] of overlap.workMsByDate) {
+      workMsByDate.set(day, (workMsByDate.get(day) ?? 0) + ms)
     }
-    return sum
-  }, 0)
+  }
 
+  const dailyWorkedHours = range.dates.map(day => ({
+    date: day,
+    hours: hoursFromCents(hourCents(workMsByDate.get(day) ?? 0)),
+  }))
+  const totalCents = dailyWorkedHours.reduce((sum, day) => sum + Math.round(Number(day.hours) * 100), 0)
+  const totalTime = totalCents / 100
   const totalBreakInHours = totalBreakTimeMs / (1000 * 60 * 60)
 
   const allocationQuery: Record<string, unknown> = {
     employee: user.authId,
-    date: query.date,
+    date: rangeFrom === rangeTo ? rangeFrom : { $gte: rangeFrom, $lte: rangeTo },
   }
   if (projectId) allocationQuery.project = new Types.ObjectId(projectId)
   const allocations = await DailyAllocation.find(allocationQuery).select('hours').lean()
   const plannedHours = allocations.reduce((sum, row) => sum + (Number(row.hours) || 0), 0)
+  const overtime = plannedHours > 0 ? Math.max(totalTime - plannedHours, 0) : 0
 
   return {
     totalTime: totalTime.toFixed(2),
@@ -269,6 +382,7 @@ const getDailySummary = async (
     totalBreakInHours: totalBreakInHours.toFixed(2),
     totalBreakInHoursFormatted: formatHoursMinutes(totalBreakInHours),
     overtimeInHoursFormatted: formatHoursMinutes(overtime),
+    dailyWorkedHours,
     sessions,
   }
 }
