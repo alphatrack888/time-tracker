@@ -219,26 +219,24 @@ export const workingHoursWindow = (date?: string) => {
 // API 1: Get working hours summary (today, this week, this month)
 const getWorkingHoursSummary = async (user: JwtPayload, date?: string) => {
   const { today, weekStart: weekStartStr, monthStart: monthStartStr } = workingHoursWindow(date)
-  const [todaySessions, weekSessions, monthSessions] = await Promise.all([
-    TimeSession.find({ user: new Types.ObjectId(user.authId), date: today}).lean(),
-    TimeSession.find({
-      user: user.authId,
-      date: { $gte: weekStartStr, $lte: today }
-    }).lean(),
-    TimeSession.find({
-      user: user.authId,
-      date: { $gte: monthStartStr, $lte: today }
-    }).lean()
-  ])
-  
-  const calculateWorkingHours = (sessions: any[]) => {
-    return sessions.reduce((sum, session) => sum + (session.totalTime || 0), 0) / (1000 * 60 * 60)
+  const rangeStart = weekStartStr < monthStartStr ? weekStartStr : monthStartStr
+  const sessions = await TimeSession.find({
+    user: user.authId,
+    date: { $gte: rangeStart, $lte: today },
+  }).select('date totalTime').lean()
+
+  const hoursFrom = (from: string) => {
+    const ms = sessions.reduce((sum, session) => {
+      if (!session.date || session.date < from || session.date > today) return sum
+      return sum + (session.totalTime || 0)
+    }, 0)
+    return Math.round((ms / (1000 * 60 * 60)) * 100) / 100
   }
-  
+
   return {
-    today: Math.round(calculateWorkingHours(todaySessions) * 100) / 100,
-    thisWeek: Math.round(calculateWorkingHours(weekSessions) * 100) / 100,
-    thisMonth: Math.round(calculateWorkingHours(monthSessions) * 100) / 100
+    today: hoursFrom(today),
+    thisWeek: hoursFrom(weekStartStr),
+    thisMonth: hoursFrom(monthStartStr),
   }
 }
 

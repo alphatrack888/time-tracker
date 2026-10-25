@@ -54,4 +54,35 @@ describe('UserServices.getWorkingHoursSummary — UTC windows', () => {
     expect(result.thisWeek).toBe(5)
     expect(result.thisMonth).toBe(7)
   })
+
+  it('keeps the previous month Monday in this week and out of this month', async () => {
+    const employee = await User.create({
+      name: 'Boundary Hours Employee',
+      email: `hours-boundary-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    const hour = 60 * 60 * 1000
+    // 2026-02-01 is a Sunday. That week's UTC Monday is 2026-01-26.
+    for (const [day, hours] of [['2026-01-26', 2], ['2026-02-01', 1]] as Array<[string, number]>) {
+      await TimeSession.create({
+        user: employee._id,
+        startTime: new Date(`${day}T08:00:00.000Z`),
+        endTime: new Date(`${day}T09:00:00.000Z`),
+        totalTime: hours * hour,
+        status: 'stopped',
+        date: day,
+      })
+    }
+
+    const result = await UserServices.getWorkingHoursSummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      '2026-02-01',
+    )
+    expect(result.today).toBe(1)
+    expect(result.thisWeek).toBe(3)
+    expect(result.thisMonth).toBe(1)
+  })
 })

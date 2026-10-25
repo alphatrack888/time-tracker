@@ -24,6 +24,8 @@ const timeSessionSchema = new Schema<ITimeSession, TimeSessionModel>({
 // Indexes for efficient queries
 timeSessionSchema.index({ user: 1, date: 1 });
 timeSessionSchema.index({ user: 1, status: 1 });
+timeSessionSchema.index({ user: 1, startTime: 1 });
+timeSessionSchema.index({ user: 1, endTime: 1 });
 timeSessionSchema.index({ 'locations.coordinates': '2dsphere' });
 
 export const TimeSession = model<ITimeSession, TimeSessionModel>('TimeSession', timeSessionSchema);
