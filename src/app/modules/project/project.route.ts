@@ -15,6 +15,11 @@ router.put(
   validateRequest(ProjectValidations.setDailyAllocation),
   ProjectController.setProjectDailyAllocation,
 );
+router.get(
+  '/:id/daily-allocation',
+  auth(USER_ROLES.COMPANY),
+  ProjectController.getProjectDailyAllocations,
+);
 router.get('/', auth(USER_ROLES.COMPANY, USER_ROLES.EMPLOYEES, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), ProjectController.getAllProjects);
 router.get('/:id', auth(USER_ROLES.COMPANY, USER_ROLES.EMPLOYEES, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), ProjectController.getSingleProject);
 router.patch('/:id', auth(USER_ROLES.COMPANY),fileAndBodyProcessorUsingDiskStorage(),validateRequest(ProjectValidations.update), ProjectController.updateProject);

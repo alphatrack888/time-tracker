@@ -2,6 +2,7 @@ import { Types } from 'mongoose'
 import { runForgotClockOutSweep, runDailyOvertimeSweep } from './timetracker.triggers'
 import { TimeSession } from './timetracker.model'
 import { Project } from '../project/project.model'
+import { DailyAllocation } from '../project/dailyAllocation.model'
 import { Notification } from '../notifications/notifications.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
@@ -153,19 +154,32 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       verified: true,
     })
 
-  it('notifies both the employee and their company when daily hours exceed the threshold', async () => {
+  const seedPlan = async (companyId: string, employeeId: Types.ObjectId, date: string, hours: number) => {
+    const project = await Project.create({ title: 'Planned', company: companyId })
+    await DailyAllocation.create({
+      company: companyId,
+      employee: employeeId,
+      project: project._id,
+      date,
+      hours,
+    })
+  }
+
+  it('notifies both the employee and their company when worked time is past the plan', async () => {
     const company = await seedCompany()
     const employee = await seedEmployee(company._id.toString())
     await TimeSession.create({
       user: employee._id,
       startTime: new Date('2026-01-10T06:00:00.000Z'),
       endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 10 * 60 * 60 * 1000, // 10h, over an 8h threshold
+      totalTime: 10 * 60 * 60 * 1000,
       status: 'stopped',
       date: '2026-01-10',
     })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    const now = new Date('2026-01-11T00:00:00.000Z')
+    const result = await runDailyOvertimeSweep(now, '2026-01-10')
 
     expect(result).toEqual({ companiesChecked: 1, notified: 1 })
 
@@ -174,27 +188,71 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       idempotencyKey: `overtime:${employee._id.toString()}:2026-01-10:employee`,
     })
     expect(employeeNotification?.title).toBe('Overtime alert')
+    expect(employeeNotification?.body).toContain('10.00')
+    expect(employeeNotification?.body).toContain('4.00')
 
     const companyNotification = await Notification.findOne({
       to: company._id,
       idempotencyKey: `overtime:${employee._id.toString()}:2026-01-10:company`,
     })
     expect(companyNotification?.body).toContain(employee.name)
+
+    await runDailyOvertimeSweep(now, '2026-01-10')
+    expect(await Notification.countDocuments({ to: employee._id })).toBe(1)
+    expect(await Notification.countDocuments({ to: company._id })).toBe(1)
   })
 
-  it('does not notify when hours worked are under the threshold', async () => {
+  it('does not notify when there is no plan for the day', async () => {
+    const company = await seedCompany()
+    const employee = await seedEmployee(company._id.toString(), 'Unplanned Employee')
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-01-10T06:00:00.000Z'),
+      endTime: new Date('2026-01-10T16:00:00.000Z'),
+      totalTime: 10 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-01-10',
+    })
+
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
+
+    expect(result).toEqual({ companiesChecked: 1, notified: 0 })
+    expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
+  })
+
+  it('does not notify when worked time is within the plan', async () => {
     const company = await seedCompany()
     const employee = await seedEmployee(company._id.toString(), 'Normal Hours Employee')
     await TimeSession.create({
       user: employee._id,
       startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T14:00:00.000Z'),
-      totalTime: 6 * 60 * 60 * 1000, // 6h, under threshold
+      endTime: new Date('2026-01-10T12:00:00.000Z'),
+      totalTime: 6 * 60 * 60 * 1000,
       status: 'stopped',
       date: '2026-01-10',
     })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 8)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
+
+    expect(result).toEqual({ companiesChecked: 1, notified: 0 })
+    expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
+  })
+
+  it('counts only the part of a session that falls on the planned day', async () => {
+    const company = await seedCompany()
+    const employee = await seedEmployee(company._id.toString(), 'Midnight Employee')
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-01-09T22:00:00.000Z'),
+      endTime: new Date('2026-01-10T02:00:00.000Z'),
+      totalTime: 4 * 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-01-09',
+    })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 3)
+
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
 
     expect(result).toEqual({ companiesChecked: 1, notified: 0 })
     expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
@@ -221,10 +279,11 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
         date: '2026-01-10',
       },
     ])
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 8)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
 
-    // 4h + 5h = 9h, over the 8h threshold, even though neither session alone is
+    // 4h + 5h = 9h, past an 8h plan, even though neither session alone is
     expect(result).toEqual({ companiesChecked: 1, notified: 1 })
   })
 
@@ -239,9 +298,10 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       status: 'stopped',
       date: '2026-01-10',
     })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
 
-    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
-    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
+    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
 
     expect(await Notification.countDocuments({ to: employee._id })).toBe(1)
   })
@@ -270,14 +330,14 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       date: '2026-01-10',
     })
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
 
     expect(result).toEqual({ companiesChecked: 0, notified: 0 })
     expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
   })
 
   it('does not throw when there are no registered companies at all', async () => {
-    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')).resolves.toEqual({
+    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')).resolves.toEqual({
       companiesChecked: 0,
       notified: 0,
     })
@@ -297,7 +357,7 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       date: '2026-01-10',
     })
 
-    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')).resolves.toEqual({
+    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')).resolves.toEqual({
       companiesChecked: 1,
       notified: 0,
     })
@@ -316,12 +376,13 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       user: employee._id,
       startTime: new Date('2026-01-10T12:00:00.000Z'),
       endTime: new Date('2026-01-10T21:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000, // 9h, over an 8h threshold
+      totalTime: 9 * 60 * 60 * 1000,
       status: 'stopped',
       date: '2026-01-10', // the UTC-anchored date string — deliberately "wrong" for this company
     })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-11', 4)
 
-    const resultForLocalJan11 = await runDailyOvertimeSweep(new Date(), 8, '2026-01-11')
+    const resultForLocalJan11 = await runDailyOvertimeSweep(new Date(), '2026-01-11')
     expect(resultForLocalJan11.notified).toBe(1)
     expect(
       await Notification.findOne({
@@ -333,7 +394,7 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
     // Checking the company's local Jan 10th (a different sweep run, distinct
     // idempotency key) must NOT pick up this session — it didn't happen on
     // their local Jan 10th, regardless of what the raw `date` field says.
-    const resultForLocalJan10 = await runDailyOvertimeSweep(new Date(), 8, '2026-01-10')
+    const resultForLocalJan10 = await runDailyOvertimeSweep(new Date(), '2026-01-10')
     expect(resultForLocalJan10.notified).toBe(0)
   })
 
@@ -363,8 +424,9 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       status: 'stopped',
       date: '2026-01-10',
     })
+    await seedPlan(goodCompany._id.toString(), goodEmployee._id, '2026-01-10', 4)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), 8, '2026-01-10')
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
 
     // Both companies were iterated (companiesChecked counts registered
     // companies, not successes) — but only the good one actually notified.
@@ -389,9 +451,10 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       status: 'stopped',
       date: '2026-01-10',
     })
+    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
 
     // "Now" is early on 2026-01-11 UTC — for a UTC company, "yesterday" is 2026-01-10.
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T03:00:00.000Z'), 8)
+    const result = await runDailyOvertimeSweep(new Date('2026-01-11T03:00:00.000Z'))
 
     expect(result.notified).toBe(1)
     expect(

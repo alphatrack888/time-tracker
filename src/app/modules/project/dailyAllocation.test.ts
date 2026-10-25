@@ -4,6 +4,7 @@ import { User } from '../user/user.model'
 import { Project } from './project.model'
 import { DailyAllocation } from './dailyAllocation.model'
 import { ProjectServices } from './project.service'
+import { TimeTrackerService } from '../timetracker/timetracker.service'
 import { signTestToken } from '../../../test/testAuth'
 import { JwtPayload } from 'jsonwebtoken'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
@@ -160,6 +161,68 @@ describe('PUT /project/:id/daily-allocation', () => {
       { employees: [] },
     )
 
+    const rows = await DailyAllocation.find({ project: project._id })
+    expect(rows).toHaveLength(0)
+  })
+
+  it('returns saved rows to the owning company, and an empty list when nothing is planned', async () => {
+    const { employee, project, token } = await createPeople()
+    const empty = await request(app)
+      .get(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(empty.status).toBe(200)
+    expect(empty.body.data).toEqual([])
+
+    await request(app)
+      .put(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ employee: employee._id.toString(), date: '2026-10-24', hours: 6 })
+    await request(app)
+      .put(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ employee: employee._id.toString(), date: '2026-10-23', hours: 4 })
+
+    const saved = await request(app)
+      .get(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(saved.status).toBe(200)
+    expect(saved.body.data).toEqual([
+      { employee: employee._id.toString(), name: 'Allocation Employee', date: '2026-10-23', hours: 4 },
+      { employee: employee._id.toString(), name: 'Allocation Employee', date: '2026-10-24', hours: 6 },
+    ])
+  })
+
+  it('rejects a company that does not own the project when reading plans', async () => {
+    const { project } = await createPeople()
+    const other = signTestToken({ role: USER_ROLES.COMPANY })
+    const res = await request(app)
+      .get(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${other.token}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('puts the saved hours on the employee summary, and clearing them removes the plan', async () => {
+    const { employee, project, token } = await createPeople()
+    const user = { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload
+
+    const saved = await request(app)
+      .put(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ employee: employee._id.toString(), date: '2026-10-23', hours: 4 })
+    expect(saved.status).toBe(200)
+
+    const withPlan = await TimeTrackerService.getDailySummary(user, { date: '2026-10-23' })
+    expect(withPlan.plannedHours).toBe('4.00')
+
+    const cleared = await request(app)
+      .put(`/api/v1/project/${project._id}/daily-allocation`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ employee: employee._id.toString(), date: '2026-10-23', hours: 0 })
+    expect(cleared.status).toBe(200)
+
+    const withoutPlan = await TimeTrackerService.getDailySummary(user, { date: '2026-10-23' })
+    expect(withoutPlan.plannedHours).toBe('0.00')
+    expect(withoutPlan.overtime).toBe('0.00')
     const rows = await DailyAllocation.find({ project: project._id })
     expect(rows).toHaveLength(0)
   })

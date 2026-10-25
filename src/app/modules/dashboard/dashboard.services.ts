@@ -8,8 +8,26 @@ import { JwtPayload } from "jsonwebtoken"
 import { AnalyticsQuery, DailyBreakdown, LocationPoint, LocationQuery, WorkingStats } from "./dashboard.interface"
 import moment from 'moment';
 import { TimeSession } from "../timetracker/timetracker.model"
+import { overlapInRange } from "../timetracker/timetracker.service"
+import { DailyAllocation } from "../project/dailyAllocation.model"
 import ApiError from "../../../errors/ApiError"
 import { StatusCodes } from "http-status-codes"
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const utcDateKeys = (from: string, to: string) => {
+  const dates: string[] = []
+  let cursor = Date.parse(`${from}T00:00:00.000Z`)
+  const end = Date.parse(`${to}T00:00:00.000Z`)
+  if (!Number.isFinite(cursor) || !Number.isFinite(end) || cursor > end) return dates
+  while (cursor <= end) {
+    dates.push(new Date(cursor).toISOString().slice(0, 10))
+    cursor += DAY_MS
+  }
+  return dates
+}
+
+const hoursFromOverlapMs = (ms: number) => Math.round((ms / (1000 * 60 * 60)) * 100) / 100
 
 const getSystemAdminGeneralStats = async() =>{  
     const [totalCompany, totalEmployees, totalRevenues] = await Promise.all([
@@ -376,36 +394,41 @@ const getComparisonDateRange = (
 };
 
 /**
- * Generate daily breakdown for chart data
+ * One point per UTC date in the chart window. Worked and break hours are the
+ * overlap inside that day. Planned hours are the DailyAllocation sum for the
+ * employee and date. Period totals stay on calculateWorkingHours.
  */
 const generateDailyBreakdown = (
-  startDate: string, 
-  endDate: string, 
-  sessionsByDate: Record<string, any[]>
+  startDate: string,
+  endDate: string,
+  sessions: Array<{ startTime: Date; endTime?: Date | null; pauses?: { start?: Date | null; end?: Date | null }[] | null }>,
+  plannedByDate: Map<string, number>,
 ): DailyBreakdown[] => {
-  const dates: string[] = [];
-  const currentDate = moment(startDate);
-  const endMoment = moment(endDate);
-
-  while (currentDate <= endMoment) {
-    dates.push(currentDate.format('YYYY-MM-DD'));
-    currentDate.add(1, 'day');
-  }
-
-  return dates.map(date => {
-    const daySessions = sessionsByDate[date] || [];
-    const dayStats = calculateWorkingHours(daySessions);
-    
+  return utcDateKeys(startDate, endDate).map(date => {
+    const dayStart = Date.parse(`${date}T00:00:00.000Z`)
+    const dayEnd = dayStart + DAY_MS
+    let workMs = 0
+    let breakMs = 0
+    let sessionsOnDay = 0
+    for (const session of sessions) {
+      const overlap = overlapInRange(session, dayStart, dayEnd)
+      if (overlap.workMs === 0 && overlap.breakMs === 0) continue
+      workMs += overlap.workMs
+      breakMs += overlap.breakMs
+      sessionsOnDay += 1
+    }
+    const planned = plannedByDate.get(date) ?? 0
     return {
       date,
-      day: moment(date).format('dddd'),
-      workingHours: dayStats.workingHours,
-      breakHours: dayStats.breakHours,
-      sessions: daySessions.length,
-      formattedDate: moment(date).format('MMM DD')
-    };
-  });
-};
+      day: moment.utc(date).format('dddd'),
+      workingHours: hoursFromOverlapMs(workMs),
+      breakHours: hoursFromOverlapMs(breakMs),
+      plannedHours: Math.round(planned * 100) / 100,
+      sessions: sessionsOnDay,
+      formattedDate: moment.utc(date).format('MMM DD'),
+    }
+  })
+}
 
 /**
  * Main service function for comprehensive time analytics
@@ -508,21 +531,35 @@ export const getTimeAnalytics = async (user: JwtPayload, query: AnalyticsQuery) 
     }
   };
 
-  // Add daily breakdown for chart if requested
+  // Chart points use the UTC overlap. Period totals above stay on stored totalTime.
   if (includeChart) {
-    // Group current sessions by date
-    const sessionsByDate = currentSessions.reduce((acc: { [x: string]: any[] }, session: { date: string | number }) => {
-      if (!acc[session.date]) {
-        acc[session.date] = [];
-      }
-      acc[session.date].push(session);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const rangeStart = Date.parse(`${currentRange.startDate}T00:00:00.000Z`)
+    const rangeEnd = Date.parse(`${currentRange.endDate}T00:00:00.000Z`) + DAY_MS
+    const [chartSessions, allocations] = await Promise.all([
+      TimeSession.find({
+        user: userId,
+        startTime: { $lt: new Date(rangeEnd) },
+        $or: [
+          { endTime: { $gte: new Date(rangeStart) } },
+          { endTime: null },
+          { endTime: { $exists: false } },
+        ],
+      }).select('startTime endTime pauses').lean(),
+      DailyAllocation.find({
+        employee: userId,
+        date: { $gte: currentRange.startDate, $lte: currentRange.endDate },
+      }).select('date hours').lean(),
+    ])
+    const plannedByDate = new Map<string, number>()
+    for (const row of allocations) {
+      plannedByDate.set(row.date, (plannedByDate.get(row.date) ?? 0) + (Number(row.hours) || 0))
+    }
 
     const dailyBreakdown = generateDailyBreakdown(
-      currentRange.startDate, 
-      currentRange.endDate, 
-      sessionsByDate
+      currentRange.startDate,
+      currentRange.endDate,
+      chartSessions,
+      plannedByDate,
     );
 
     response.chartData = {
