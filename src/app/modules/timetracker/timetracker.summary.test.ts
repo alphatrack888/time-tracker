@@ -551,4 +551,36 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     expect(result.totalBreakInHoursFormatted).toBe('0h 30m')
     expectDailyAddsUp(result)
   })
+
+  it('leaves stored location points off the returned session', async () => {
+    const employee = await User.create({
+      name: 'Location Employee',
+      email: `summary-loc-${Date.now()}-${Math.random()}@example.com`,
+      password: 'Password123!',
+      role: USER_ROLES.EMPLOYEES,
+      status: USER_STATUS.ACTIVE,
+      verified: true,
+    })
+    await TimeSession.create({
+      user: employee._id,
+      startTime: new Date('2026-08-01T08:00:00.000Z'),
+      endTime: new Date('2026-08-01T09:00:00.000Z'),
+      totalTime: 60 * 60 * 1000,
+      status: 'stopped',
+      date: '2026-08-01',
+      locations: [{
+        timestamp: new Date('2026-08-01T08:30:00.000Z'),
+        coordinates: [13.4, 52.5],
+        action: 'periodic',
+      }],
+    })
+
+    const result = await TimeTrackerService.getDailySummary(
+      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
+      { date: '2026-08-01' },
+    )
+    expect(result.sessions).toHaveLength(1)
+    expect(result.totalTime).toBe('1.00')
+    expect((result.sessions[0] as { locations?: unknown }).locations).toBeUndefined()
+  })
 })

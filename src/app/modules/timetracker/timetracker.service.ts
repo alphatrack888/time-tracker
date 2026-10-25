@@ -319,18 +319,20 @@ const getDailySummary = async (
   }
 
   const range = summaryRange(rangeFrom, rangeTo)
+  const rangeStart = new Date(range.start)
+  const rangeEnd = new Date(range.end)
   const query: Record<string, unknown> = {
     user: user.authId,
-    startTime: { $lt: new Date(range.end) },
     $or: [
-      { endTime: { $gte: new Date(range.start) } },
-      { endTime: null },
-      { endTime: { $exists: false } },
+      { startTime: { $gte: rangeStart, $lt: rangeEnd } },
+      { startTime: { $lt: rangeStart }, endTime: { $gte: rangeStart } },
+      { startTime: { $lt: rangeStart }, endTime: null },
+      { startTime: { $lt: rangeStart }, endTime: { $exists: false } },
     ],
   }
   if (projectId) query.project = new Types.ObjectId(projectId)
 
-  const found = await TimeSession.find(query).populate('project', 'title').lean()
+  const found = await TimeSession.find(query).select('-locations').populate('project', 'title').lean()
 
   if (projectId) {
     const project = await Project.findById(projectId).lean()
