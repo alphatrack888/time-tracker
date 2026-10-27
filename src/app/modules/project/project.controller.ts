@@ -36,6 +36,16 @@ import { paginationFields } from '../../../interfaces/pagination';
     });
   });
   
+  const getStanding = catchAsync(async (req: Request, res: Response) => {
+    const result = await ProjectServices.getStanding(req.user!);
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Project standing retrieved',
+      data: result,
+    });
+  });
+
   const getSingleProject = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
     const result = await ProjectServices.getSingleProject(req.user!, id);
@@ -77,6 +87,7 @@ import { paginationFields } from '../../../interfaces/pagination';
     createProject,
     updateProject,
     getSingleProject,
+    getStanding,
     getAllProjects,
     deleteProject,
   };
