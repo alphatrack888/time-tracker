@@ -2,7 +2,6 @@ import { JwtPayload } from 'jsonwebtoken'
 import { TimeTrackerService } from './timetracker.service'
 import { TimeSession } from './timetracker.model'
 import { Project } from '../project/project.model'
-import { DailyAllocation } from '../project/dailyAllocation.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
 
@@ -125,7 +124,7 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     expectDailyAddsUp(result)
   })
 
-  it('reports overtime in hours, not hours divided by 60', async () => {
+  it('reports a 10 hour session with a 30 minute break as 9.50 worked hours', async () => {
     const employee = await User.create({
       name: 'Overtime Employee',
       email: `summary-ot-${Date.now()}-${Math.random()}@example.com`,
@@ -158,14 +157,12 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       { date: '2026-04-01', project: project._id.toString() },
     )
     expect(result.totalTime).toBe('9.50')
-    expect(result.overtime).toBe('0.00')
-    expect(result.overtimeInHoursFormatted).toBe('0h 0m')
     expect(result.totalBreakInHoursFormatted).toBe('0h 30m')
     expect((result.sessions[0] as { totalTime?: number }).totalTime).toBe(10 * 60 * 60 * 1000)
     expectDailyAddsUp(result)
   })
 
-  it('does not treat projectTime as an overtime allowance', async () => {
+  it('returns the worked total for a 10 hour day', async () => {
     const employee = await User.create({
       name: 'Span Overtime Employee',
       email: `summary-span-${Date.now()}-${Math.random()}@example.com`,
@@ -193,13 +190,11 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
       { date: '2026-05-01', project: project._id.toString() },
     )
-    expect(result.overtime).toBe('0.00')
-    expect(result.overtimeInHoursFormatted).toBe('0h 0m')
-    expect(result.plannedHours).toBe('0.00')
+    expect(result.totalTime).toBe('10.00')
     expectDailyAddsUp(result)
   })
 
-  it('reports no overtime for a range when nothing is planned', async () => {
+  it('sums worked hours across the dates in a range', async () => {
     const employee = await User.create({
       name: 'Range Overtime Employee',
       email: `summary-range-ot-${Date.now()}-${Math.random()}@example.com`,
@@ -231,8 +226,6 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     )
     expect(result.totalTime).toBe('18.00')
     expectDailyAddsUp(result)
-    expect(result.overtime).toBe('0.00')
-    expect(result.overtimeInHoursFormatted).toBe('0h 0m')
   })
 
   it('returns an empty sessions array when none match (does not 400)', async () => {
@@ -256,10 +249,10 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     )
 
     expect(result.sessions).toEqual([])
-    expect(result.plannedHours).toBe('0.00')
+    expect(result.totalTime).toBe('0.00')
   })
 
-  it('counts overtime as logged time past the planned hours', async () => {
+  it('returns 6 worked hours for a 6 hour day', async () => {
     const company = await User.create({
       name: 'Plan Company',
       email: `plan-co-${Date.now()}-${Math.random()}@example.com`,
@@ -282,13 +275,6 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       employees: [employee._id],
       projectTime: 720,
     })
-    await DailyAllocation.create({
-      company: company._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-06-01',
-      hours: 4,
-    })
     await TimeSession.create({
       user: employee._id,
       project: project._id,
@@ -305,12 +291,9 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     )
     expect(result.totalTime).toBe('6.00')
     expectDailyAddsUp(result)
-    expect(result.plannedHours).toBe('4.00')
-    expect(result.overtime).toBe('2.00')
-    expect(result.overtimeInHoursFormatted).toBe('2h 0m')
   })
 
-  it('reports 6 hours of overtime when 10 hours are logged against a 4 hour plan', async () => {
+  it('returns 10 worked hours for a 10 hour day', async () => {
     const company = await User.create({
       name: 'Ten Hour Company',
       email: `plan-ten-co-${Date.now()}-${Math.random()}@example.com`,
@@ -333,13 +316,6 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       employees: [employee._id],
       projectTime: 8,
     })
-    await DailyAllocation.create({
-      company: company._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-06-10',
-      hours: 4,
-    })
     await TimeSession.create({
       user: employee._id,
       project: project._id,
@@ -356,12 +332,9 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
     )
     expect(result.totalTime).toBe('10.00')
     expectDailyAddsUp(result)
-    expect(result.plannedHours).toBe('4.00')
-    expect(result.overtime).toBe('6.00')
-    expect(result.overtimeInHoursFormatted).toBe('6h 0m')
   })
 
-  it('sums planned hours across projects on the same day, and a project filter counts only that project', async () => {
+  it('a project filter counts only that project’s worked hours', async () => {
     const company = await User.create({
       name: 'Sum Company',
       email: `plan-sum-co-${Date.now()}-${Math.random()}@example.com`,
@@ -384,25 +357,11 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
       employees: [employee._id],
       projectTime: 8,
     })
-    const second = await Project.create({
+    await Project.create({
       title: 'Second Planned',
       company: company._id,
       employees: [employee._id],
       projectTime: 8,
-    })
-    await DailyAllocation.create({
-      company: company._id,
-      employee: employee._id,
-      project: first._id,
-      date: '2026-06-02',
-      hours: 4,
-    })
-    await DailyAllocation.create({
-      company: company._id,
-      employee: employee._id,
-      project: second._id,
-      date: '2026-06-02',
-      hours: 3,
     })
     await TimeSession.create({
       user: employee._id,
@@ -416,63 +375,15 @@ describe('TimeTrackerService.getDailySummary — stored date string', () => {
 
     const user = { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload
     const combined = await TimeTrackerService.getDailySummary(user, { date: '2026-06-02' })
-    expect(combined.plannedHours).toBe('7.00')
     expect(combined.totalTime).toBe('6.00')
     expectDailyAddsUp(combined)
-    expect(combined.overtime).toBe('0.00')
 
     const filtered = await TimeTrackerService.getDailySummary(user, {
       date: '2026-06-02',
       project: first._id.toString(),
     })
-    expect(filtered.plannedHours).toBe('4.00')
-    expect(filtered.overtime).toBe('2.00')
-  })
-
-  it('sums planned hours across the dates in a range', async () => {
-    const employee = await User.create({
-      name: 'Range Plan Employee',
-      email: `plan-range-${Date.now()}-${Math.random()}@example.com`,
-      password: 'Password123!',
-      role: USER_ROLES.EMPLOYEES,
-      status: USER_STATUS.ACTIVE,
-      verified: true,
-    })
-    const project = await Project.create({
-      title: 'Range Plan',
-      company: employee._id,
-      projectTime: 8,
-    })
-    await DailyAllocation.create({
-      company: employee._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-06-03',
-      hours: 4,
-    })
-    await DailyAllocation.create({
-      company: employee._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-06-04',
-      hours: 3,
-    })
-    await DailyAllocation.create({
-      company: employee._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-06-05',
-      hours: 9,
-    })
-
-    const result = await TimeTrackerService.getDailySummary(
-      { authId: employee._id.toString(), role: USER_ROLES.EMPLOYEES } as JwtPayload,
-      { from: '2026-06-03', to: '2026-06-04' },
-    )
-    expect(result.plannedHours).toBe('7.00')
-    expect(result.overtime).toBe('0.00')
-    expect(result.sessions).toEqual([])
-    expectDailyAddsUp(result)
+    expect(filtered.totalTime).toBe('6.00')
+    expectDailyAddsUp(filtered)
   })
 
   it('counts only the part of a session that falls inside the range', async () => {

@@ -115,6 +115,18 @@ describe('renderNotificationTemplate (Phase 4: bilingual notification copy)', ()
     expect(leave.romanian.title).not.toBe(leave.english.title)
   })
 
+  it('names the project in every overtime locale', () => {
+    const data = { employeeName: 'Anna', projectTitle: 'Site', hoursWorked: '42.00', allocatedHours: '40.00' }
+    for (const kind of ['overtimeEmployeeAlert', 'overtimeCompanyAlert'] as const) {
+      const translations = renderNotificationTranslations(kind, data)
+      for (const locale of APP_NOTIFICATION_LOCALES) {
+        expect(translations[locale].body).toContain('Site')
+        expect(translations[locale].body).toContain('42.00')
+        expect(translations[locale].body).toContain('40.00')
+      }
+    }
+  })
+
   it('every kind maps to exactly one category, and only "account" is mandatory', () => {
     expect(KIND_CATEGORY.employeeWelcome).toBe('account')
     expect(KIND_CATEGORY.newEmployeeAddedConfirmation).toBe('account')

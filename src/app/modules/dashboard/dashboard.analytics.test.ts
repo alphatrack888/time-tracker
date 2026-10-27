@@ -2,7 +2,6 @@ import { JwtPayload } from 'jsonwebtoken'
 import { getTimeAnalytics } from './dashboard.services'
 import { TimeSession } from '../timetracker/timetracker.model'
 import { Project } from '../project/project.model'
-import { DailyAllocation } from '../project/dailyAllocation.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
 
@@ -41,7 +40,7 @@ const chartFor = (
 )
 
 describe('getTimeAnalytics chart points', () => {
-  it('splits a midnight session across the two UTC dates and shows the plan only where it is saved', async () => {
+  it('splits a midnight session across the two UTC dates', async () => {
     const { company, employee } = await seedCompanyAndEmployee()
     const project = await Project.create({
       title: 'Chart Project',
@@ -57,24 +56,16 @@ describe('getTimeAnalytics chart points', () => {
       status: 'stopped',
       date: '2026-07-01',
     })
-    await DailyAllocation.create({
-      company: company._id,
-      employee: employee._id,
-      project: project._id,
-      date: '2026-07-02',
-      hours: 4,
-    })
 
     const result = await chartFor(company._id.toString(), employee._id.toString())
     const points = result.chartData.dailyBreakdown
 
-    expect(points.map((point: { date: string; workingHours: number; plannedHours: number }) => ({
+    expect(points.map((point: { date: string; workingHours: number }) => ({
       date: point.date,
       workingHours: point.workingHours,
-      plannedHours: point.plannedHours,
     }))).toEqual([
-      { date: '2026-07-01', workingHours: 2, plannedHours: 0 },
-      { date: '2026-07-02', workingHours: 2, plannedHours: 4 },
+      { date: '2026-07-01', workingHours: 2 },
+      { date: '2026-07-02', workingHours: 2 },
     ])
   })
 
