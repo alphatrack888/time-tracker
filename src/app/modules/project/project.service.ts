@@ -456,10 +456,100 @@ const deleteProject = async (user: JwtPayload, id: string) => {
   return "Project deleted successfully";
 };
 
+const hoursFromMs = (workedMs: number) => Math.round((workedMs / (1000 * 60 * 60)) * 100) / 100
+
+/** Worked, allocation, overtime, and break for the employee's in-progress projects. */
+const getStanding = async (user: JwtPayload) => {
+  if (user.role !== USER_ROLES.EMPLOYEES) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Only an employee can read project standing')
+  }
+
+  const now = new Date()
+  const window = statusFilterForDates('in-progress', now)
+  const projects = await Project.find({
+    employees: user.authId,
+    ...window,
+  }).select('_id projectTime').lean()
+
+  if (projects.length === 0) {
+    return {
+      workedHours: 0,
+      allocatedHours: 0,
+      overtimeHours: 0,
+      breakHours: 0,
+      projectCount: 0,
+    }
+  }
+
+  const rows = await TimeSession.aggregate<{ _id: Types.ObjectId; workedMs: number; breakMs: number }>([
+    {
+      $match: {
+        user: new Types.ObjectId(user.authId),
+        project: { $in: projects.map(project => project._id) },
+      },
+    },
+    {
+      $group: {
+        _id: '$project',
+        workedMs: { $sum: { $ifNull: ['$totalTime', 0] } },
+        breakMs: {
+          $sum: {
+            $reduce: {
+              input: { $ifNull: ['$pauses', []] },
+              initialValue: 0,
+              in: {
+                $add: [
+                  '$$value',
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ['$$this.start', null] },
+                          { $ne: ['$$this.end', null] },
+                          { $gt: ['$$this.end', '$$this.start'] },
+                        ],
+                      },
+                      { $subtract: ['$$this.end', '$$this.start'] },
+                      0,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+  ])
+
+  const msByProject = new Map(rows.map(row => [String(row._id), row]))
+  let workedHours = 0
+  let allocatedHours = 0
+  let overtimeHours = 0
+  let breakMs = 0
+  for (const project of projects) {
+    const row = msByProject.get(String(project._id))
+    const progress = progressHours(row?.workedMs ?? 0, project.projectTime)
+    workedHours += progress.workedHours
+    overtimeHours += progress.overtimeHours
+    allocatedHours += Number(project.projectTime) || 0
+    breakMs += row?.breakMs ?? 0
+  }
+
+  return {
+    workedHours: Math.round(workedHours * 100) / 100,
+    allocatedHours: Math.round(allocatedHours * 100) / 100,
+    overtimeHours: Math.round(overtimeHours * 100) / 100,
+    breakHours: hoursFromMs(breakMs),
+    projectCount: projects.length,
+  }
+}
+
 export const ProjectServices = {
   createProject,
   getAllProjects,
   getSingleProject,
+  getStanding,
   updateProject,
   deleteProject,
 };

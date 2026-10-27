@@ -24,4 +24,6 @@ const projectSchema = new Schema<IProject, ProjectModel>({
   timestamps: true
 });
 
+projectSchema.index({ employees: 1, startDate: 1, endDate: 1 });
+
 export const Project = model<IProject, ProjectModel>('Project', projectSchema);
