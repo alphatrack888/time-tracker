@@ -1,7 +1,6 @@
 import { Types } from 'mongoose';
 import { TimeSession } from './timetracker.model';
-import { overlapInRange } from './timetracker.service';
-import { DailyAllocation } from '../project/dailyAllocation.model';
+import { Project } from '../project/project.model';
 import { User } from '../user/user.model';
 // These sweeps are meant to be invoked by cron (Phase 6), not a live HTTP
 // request, so they call sendNotification directly and await it rather than
@@ -12,7 +11,6 @@ import { User } from '../user/user.model';
 import { sendNotification } from '../../../helpers/notificationHelper';
 import { logger } from '../../../shared/logger';
 import { USER_ROLES } from '../../../enum/user';
-import { DEFAULT_TIMEZONE, getPreviousLocalDateKey, getUtcRangeForLocalDate } from '../../../helpers/timezoneHelper';
 
 /**
  * Scheduled-check notification triggers (integration plan Phase 3), each a
@@ -70,71 +68,68 @@ export const runForgotClockOutSweep = async (
   return { checked: openSessions.length, notified: openSessions.length };
 };
 
+const hoursFromMs = (workedMs: number) => Math.round((workedMs / (1000 * 60 * 60)) * 100) / 100
+
 /**
- * Notifies an employee and their company when worked time on the company's
- * local day is past the hours planned for that day. `dateKey` is that local
- * calendar date. Queries use the UTC instant range for that day, not the
- * stored session `date` string.
+ * Notifies an employee and their company when that person's committed hours
+ * on a project are past the project's hour limit. An open session adds
+ * nothing beyond time already committed. A project with no limit sends
+ * nothing. Only people assigned to the project are checked.
  *
- * Worked time is the overlap inside the range (`overlapInRange`). An open
- * session adds no live tail. Planned hours are the DailyAllocation rows for
- * that employee and date, summed across projects. No plan sends nothing.
- *
- * Idempotency is scoped to (user, local date) — re-running the sweep later
- * the same day does not re-notify; a new local day does.
+ * Idempotency is scoped to (user, project, limit). A repeat sweep does not
+ * send again. A later change to the limit can notify once on the new crossing.
  */
-const runDailyOvertimeSweepForCompany = async (
+const runProjectOvertimeSweepForCompany = async (
   companyId: string,
-  dateKey: string,
-  range: { start: Date; end: Date },
 ): Promise<{ checked: number; notified: number }> => {
-  const companyEmployees = await User.find({ company: companyId, role: USER_ROLES.EMPLOYEES }).select('_id').lean();
-  if (companyEmployees.length === 0) return { checked: 0, notified: 0 };
-  const employeeIds = companyEmployees.map(e => e._id);
+  const projects = await Project.find({
+    company: companyId,
+    projectTime: { $gt: 0 },
+    'employees.0': { $exists: true },
+  }).select('_id title projectTime employees').lean();
+  if (projects.length === 0) return { checked: 0, notified: 0 };
 
-  const sessions = await TimeSession.find({
-    user: { $in: employeeIds },
-    startTime: { $lt: range.end },
-    $or: [
-      { endTime: { $gte: range.start } },
-      { endTime: null },
-      { endTime: { $exists: false } },
-    ],
-  }).select('user startTime endTime pauses').lean();
-
-  const workMsByUser = new Map<string, number>();
-  for (const session of sessions) {
-    const overlap = overlapInRange(session, range.start.getTime(), range.end.getTime());
-    if (overlap.workMs === 0) continue;
-    const userId = session.user.toString();
-    workMsByUser.set(userId, (workMsByUser.get(userId) ?? 0) + overlap.workMs);
-  }
-
-  const plans = await DailyAllocation.aggregate<{ _id: { toString(): string }; hours: number }>([
-    { $match: { company: new Types.ObjectId(companyId), employee: { $in: employeeIds }, date: dateKey } },
-    { $group: { _id: '$employee', hours: { $sum: '$hours' } } },
+  const projectById = new Map(projects.map(project => [project._id.toString(), project]));
+  const totals = await TimeSession.aggregate<{
+    _id: { user: Types.ObjectId; project: Types.ObjectId }
+    workedMs: number
+  }>([
+    { $match: { project: { $in: projects.map(project => project._id) } } },
+    {
+      $group: {
+        _id: { user: '$user', project: '$project' },
+        workedMs: { $sum: { $ifNull: ['$totalTime', 0] } },
+      },
+    },
   ]);
-  const plannedByUser = new Map(plans.map(row => [row._id.toString(), Number(row.hours) || 0]));
 
   let notified = 0;
-  for (const [userId, workMs] of workMsByUser) {
-    const planned = plannedByUser.get(userId) ?? 0;
-    const worked = workMs / (1000 * 60 * 60);
-    if (!(planned > 0 && worked > planned)) continue;
+  for (const row of totals) {
+    const project = projectById.get(row._id.project.toString());
+    if (!project) continue;
+    const userId = row._id.user.toString();
+    const assigned = (project.employees || []).some(id => id.toString() === userId);
+    if (!assigned) continue;
+
+    const limit = Number(project.projectTime) || 0;
+    const workedHours = hoursFromMs(row.workedMs);
+    if (!(limit > 0 && workedHours > limit)) continue;
 
     const employee = await User.findById(userId).select('name').lean();
     if (!employee) continue;
 
-    const hoursWorked = worked.toFixed(2);
-    const plannedHours = planned.toFixed(2);
+    const projectId = project._id.toString();
+    const projectTitle = project.title || 'Project';
+    const hoursWorked = workedHours.toFixed(2);
+    const allocatedHours = limit.toFixed(2);
     const employeeName = employee.name || 'An employee';
 
     await sendNotification({
       from: userId,
       to: userId,
       kind: 'overtimeEmployeeAlert',
-      data: { hoursWorked, plannedHours },
-      idempotencyKey: `overtime:${userId}:${dateKey}:employee`,
+      data: { projectTitle, hoursWorked, allocatedHours },
+      idempotencyKey: `overtime:${userId}:${projectId}:${limit}:employee`,
     });
     notified += 1;
 
@@ -142,46 +137,31 @@ const runDailyOvertimeSweepForCompany = async (
       from: userId,
       to: companyId,
       kind: 'overtimeCompanyAlert',
-      data: { employeeName, hoursWorked, plannedHours },
-      idempotencyKey: `overtime:${userId}:${dateKey}:company`,
+      data: { employeeName, projectTitle, hoursWorked, allocatedHours },
+      idempotencyKey: `overtime:${userId}:${projectId}:${limit}:company`,
     });
   }
 
-  return { checked: workMsByUser.size, notified };
+  return { checked: totals.length, notified };
 };
 
 /**
- * Runs the overtime check for every company, each against its own most
- * recently completed *local* calendar day (per its configured `timezone`,
- * default UTC — see user.interface.ts) — so a company in Tokyo isn't
- * evaluated against a UTC day boundary that doesn't match their actual
- * workday. `targetDateKey`, if given, checks that specific local date for
- * every company instead of auto-computing "yesterday" — mainly useful for
- * tests and manual reprocessing.
+ * Runs the project-limit overtime check for every company. The schedule stays
+ * every 4 hours. The check does not use a calendar day or a company timezone.
  */
-export const runDailyOvertimeSweep = async (
-  now: Date = new Date(),
-  targetDateKey?: string,
-): Promise<{ companiesChecked: number; notified: number }> => {
-  const companies = await User.find({ role: USER_ROLES.COMPANY }).select('timezone').lean();
+export const runDailyOvertimeSweep = async (): Promise<{ companiesChecked: number; notified: number }> => {
+  const companies = await User.find({ role: USER_ROLES.COMPANY }).select('_id').lean();
   let notified = 0;
 
   for (const company of companies) {
-    // One company's failure — most plausibly an invalid `timezone` value
-    // that somehow bypassed the profile-update validation (isValidTimezone
-    // in timezoneHelper.ts) — must not abort the sweep for every other
-    // company.
     try {
-      const timezone = company.timezone || DEFAULT_TIMEZONE;
-      const dateKey = targetDateKey || getPreviousLocalDateKey(timezone, now);
-      const range = getUtcRangeForLocalDate(timezone, dateKey, now);
-      const result = await runDailyOvertimeSweepForCompany(company._id.toString(), dateKey, range);
+      const result = await runProjectOvertimeSweepForCompany(company._id.toString());
       notified += result.notified;
     } catch (err) {
-      logger.error(`attendance:daily-overtime-sweep-company-failed companyId=${company._id.toString()}`, err);
+      logger.error(`attendance:project-overtime-sweep-company-failed companyId=${company._id.toString()}`, err);
     }
   }
 
-  logger.info(`attendance:daily-overtime-sweep companiesChecked=${companies.length} notified=${notified}`);
+  logger.info(`attendance:project-overtime-sweep companiesChecked=${companies.length} notified=${notified}`);
   return { companiesChecked: companies.length, notified };
 };

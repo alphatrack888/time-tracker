@@ -7,7 +7,6 @@ import { Types } from 'mongoose';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { Project } from '../project/project.model'
-import { DailyAllocation } from '../project/dailyAllocation.model';
 import { User } from '../user/user.model';
 import {
   generateComprehensiveTimesheetReport,
@@ -368,22 +367,10 @@ const getDailySummary = async (
   const totalTime = totalCents / 100
   const totalBreakInHours = totalBreakTimeMs / (1000 * 60 * 60)
 
-  const allocationQuery: Record<string, unknown> = {
-    employee: user.authId,
-    date: rangeFrom === rangeTo ? rangeFrom : { $gte: rangeFrom, $lte: rangeTo },
-  }
-  if (projectId) allocationQuery.project = new Types.ObjectId(projectId)
-  const allocations = await DailyAllocation.find(allocationQuery).select('hours').lean()
-  const plannedHours = allocations.reduce((sum, row) => sum + (Number(row.hours) || 0), 0)
-  const overtime = plannedHours > 0 ? Math.max(totalTime - plannedHours, 0) : 0
-
   return {
     totalTime: totalTime.toFixed(2),
-    overtime: overtime.toFixed(2),
-    plannedHours: plannedHours.toFixed(2),
     totalBreakInHours: totalBreakInHours.toFixed(2),
     totalBreakInHoursFormatted: formatHoursMinutes(totalBreakInHours),
-    overtimeInHoursFormatted: formatHoursMinutes(overtime),
     dailyWorkedHours,
     sessions,
   }

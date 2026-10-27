@@ -3,7 +3,6 @@ import ApiError from '../../../errors/ApiError';
 import { IPackageFilterables, IProject } from './project.interface';
 import { Project } from './project.model';
 import { TimeSession } from '../timetracker/timetracker.model';
-import { DailyAllocation } from './dailyAllocation.model';
 import { User } from '../user/user.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { IPaginationOptions } from '../../../interfaces/pagination';
@@ -37,6 +36,14 @@ const presentProject = <T>(project: T, now: Date = new Date()): T => {
     plain.status as string | null | undefined,
   )
   return plain as T
+}
+
+/** Committed hours and overtime against the project's shared limit. */
+const progressHours = (workedMs: number, projectTime: number | null | undefined) => {
+  const workedHours = Math.round((workedMs / (1000 * 60 * 60)) * 100) / 100
+  const limit = Number(projectTime) || 0
+  const overtimeHours = limit > 0 ? Math.max(0, Math.round((workedHours - limit) * 100) / 100) : 0
+  return { workedHours, overtimeHours }
 }
 
 
@@ -154,7 +161,7 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
       .sort({[sortBy]: sortOrder}).lean(),
     Project.countDocuments(whereConditions),
   ])
-  const data = result.map(row => presentProject(row, now) as IProject & { workedHours?: number })
+  const data = result.map(row => presentProject(row, now) as IProject & { workedHours?: number; overtimeHours?: number })
   if (user.role === USER_ROLES.EMPLOYEES && data.length > 0) {
     const pageIds = data.map(project => project._id)
     const totals = await TimeSession.aggregate<{ _id: Types.ObjectId; workedMs: number }>([
@@ -171,14 +178,11 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
         },
       },
     ])
-    const hoursByProject = new Map(
-      totals.map(row => [
-        row._id.toString(),
-        Math.round((row.workedMs / (1000 * 60 * 60)) * 100) / 100,
-      ]),
-    )
+    const msByProject = new Map(totals.map(row => [row._id.toString(), row.workedMs]))
     for (const project of data) {
-      project.workedHours = hoursByProject.get(String(project._id)) ?? 0
+      const progress = progressHours(msByProject.get(String(project._id)) ?? 0, project.projectTime)
+      project.workedHours = progress.workedHours
+      project.overtimeHours = progress.overtimeHours
     }
   }
   return {
@@ -223,7 +227,51 @@ const getSingleProject = async (user: JwtPayload, id: string) => {
       'Requested project not found, please try again with valid id',
     );
   }
-  return presentProject(result);
+  const presented = presentProject(result) as IProject & {
+    workedHours?: number
+    overtimeHours?: number
+    employees: Array<{ _id: Types.ObjectId; name?: string; workedHours?: number; overtimeHours?: number }>
+  }
+
+  if (user.role === USER_ROLES.EMPLOYEES) {
+    const totals = await TimeSession.aggregate<{ _id: Types.ObjectId; workedMs: number }>([
+      {
+        $match: {
+          user: new Types.ObjectId(user.authId),
+          project: result._id,
+        },
+      },
+      {
+        $group: {
+          _id: '$project',
+          workedMs: { $sum: { $ifNull: ['$totalTime', 0] } },
+        },
+      },
+    ])
+    const progress = progressHours(totals[0]?.workedMs ?? 0, presented.projectTime)
+    presented.workedHours = progress.workedHours
+    presented.overtimeHours = progress.overtimeHours
+  }
+
+  if (user.role === USER_ROLES.COMPANY && presented.employees.length > 0) {
+    const totals = await TimeSession.aggregate<{ _id: Types.ObjectId; workedMs: number }>([
+      { $match: { project: result._id } },
+      {
+        $group: {
+          _id: '$user',
+          workedMs: { $sum: { $ifNull: ['$totalTime', 0] } },
+        },
+      },
+    ])
+    const msByUser = new Map(totals.map(row => [row._id.toString(), row.workedMs]))
+    for (const employee of presented.employees) {
+      const progress = progressHours(msByUser.get(String(employee._id)) ?? 0, presented.projectTime)
+      employee.workedHours = progress.workedHours
+      employee.overtimeHours = progress.overtimeHours
+    }
+  }
+
+  return presented;
 };
 
 const updateProject = async (
@@ -315,10 +363,6 @@ const updateProject = async (
   const addedEmployees = [...newEmployees].filter(emp => !existingEmployees.has(emp));
   const removedEmployees = [...existingEmployees].filter(emp => !newEmployees.has(emp));
 
-  if (removedEmployees.length > 0) {
-    await DailyAllocation.deleteMany({ project: id, employee: { $in: removedEmployees } })
-  }
-
   // Prepare notifications
   const notificationsData = [];
 
@@ -402,7 +446,6 @@ const deleteProject = async (user: JwtPayload, id: string) => {
     );
   }
 
- await DailyAllocation.deleteMany({ project: id })
  const deleteProject = await Project.findByIdAndDelete(id);
   if(!deleteProject){
     throw new ApiError(

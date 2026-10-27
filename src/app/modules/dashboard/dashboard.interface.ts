@@ -23,7 +23,6 @@ export type DailyBreakdown = {
   day: string;
   workingHours: number;
   breakHours: number;
-  plannedHours: number;
   sessions: number;
   formattedDate: string;
 }

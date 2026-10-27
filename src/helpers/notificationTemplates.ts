@@ -268,39 +268,39 @@ const TEMPLATES: Record<NotificationKind, Record<TemplateLanguage, TemplateFn>> 
     }),
   },
   overtimeEmployeeAlert: {
-    en: ({ hoursWorked, plannedHours }) => ({
+    en: ({ projectTitle, hoursWorked, allocatedHours }) => ({
       title: 'Overtime alert',
-      body: `You've worked ${hoursWorked}h today, past the ${plannedHours}h planned.`,
+      body: `You've worked ${hoursWorked}h on ${projectTitle}, past the ${allocatedHours}h allocated.`,
     }),
-    de: ({ hoursWorked, plannedHours }) => ({
+    de: ({ projectTitle, hoursWorked, allocatedHours }) => ({
       title: 'Überstunden-Hinweis',
-      body: `Sie haben heute ${hoursWorked} Std. gearbeitet, über den geplanten ${plannedHours} Std.`,
+      body: `Sie haben ${hoursWorked} Std. an ${projectTitle} gearbeitet, über die zugeteilten ${allocatedHours} Std.`,
     }),
-    ar: ({ hoursWorked, plannedHours }) => ({
+    ar: ({ projectTitle, hoursWorked, allocatedHours }) => ({
       title: 'تنبيه عمل إضافي',
-      body: `لقد عملت ${hoursWorked} س اليوم، بعد الساعات المخططة البالغة ${plannedHours} س.`,
+      body: `لقد عملت ${hoursWorked} س على ${projectTitle}، بعد الساعات المخصصة البالغة ${allocatedHours} س.`,
     }),
-    ro: ({ hoursWorked, plannedHours }) => ({
+    ro: ({ projectTitle, hoursWorked, allocatedHours }) => ({
       title: 'Alertă de ore suplimentare',
-      body: `Ai lucrat ${hoursWorked} h astăzi, peste cele ${plannedHours} h planificate.`,
+      body: `Ai lucrat ${hoursWorked} h la ${projectTitle}, peste cele ${allocatedHours} h alocate.`,
     }),
   },
   overtimeCompanyAlert: {
-    en: ({ employeeName, hoursWorked, plannedHours }) => ({
+    en: ({ employeeName, projectTitle, hoursWorked, allocatedHours }) => ({
       title: `Overtime alert: ${employeeName}`,
-      body: `${employeeName} has worked ${hoursWorked}h today, past the ${plannedHours}h planned.`,
+      body: `${employeeName} has worked ${hoursWorked}h on ${projectTitle}, past the ${allocatedHours}h allocated.`,
     }),
-    de: ({ employeeName, hoursWorked, plannedHours }) => ({
+    de: ({ employeeName, projectTitle, hoursWorked, allocatedHours }) => ({
       title: `Überstunden-Hinweis: ${employeeName}`,
-      body: `${employeeName} hat heute ${hoursWorked} Std. gearbeitet, über den geplanten ${plannedHours} Std.`,
+      body: `${employeeName} hat ${hoursWorked} Std. an ${projectTitle} gearbeitet, über die zugeteilten ${allocatedHours} Std.`,
     }),
-    ar: ({ employeeName, hoursWorked, plannedHours }) => ({
+    ar: ({ employeeName, projectTitle, hoursWorked, allocatedHours }) => ({
       title: `تنبيه عمل إضافي: ${employeeName}`,
-      body: `عمل ${employeeName} ${hoursWorked} س اليوم، بعد الساعات المخططة البالغة ${plannedHours} س.`,
+      body: `عمل ${employeeName} ${hoursWorked} س على ${projectTitle}، بعد الساعات المخصصة البالغة ${allocatedHours} س.`,
     }),
-    ro: ({ employeeName, hoursWorked, plannedHours }) => ({
+    ro: ({ employeeName, projectTitle, hoursWorked, allocatedHours }) => ({
       title: `Alertă de ore suplimentare: ${employeeName}`,
-      body: `${employeeName} a lucrat ${hoursWorked} h astăzi, peste cele ${plannedHours} h planificate.`,
+      body: `${employeeName} a lucrat ${hoursWorked} h la ${projectTitle}, peste cele ${allocatedHours} h alocate.`,
     }),
   },
   forgotClockOut: {

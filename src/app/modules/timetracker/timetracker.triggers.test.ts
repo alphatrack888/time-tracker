@@ -2,7 +2,6 @@ import { Types } from 'mongoose'
 import { runForgotClockOutSweep, runDailyOvertimeSweep } from './timetracker.triggers'
 import { TimeSession } from './timetracker.model'
 import { Project } from '../project/project.model'
-import { DailyAllocation } from '../project/dailyAllocation.model'
 import { Notification } from '../notifications/notifications.model'
 import { User } from '../user/user.model'
 import { USER_ROLES, USER_STATUS } from '../../../enum/user'
@@ -131,8 +130,8 @@ describe('runForgotClockOutSweep (Phase 3, checker built now — cron wiring is 
   })
 })
 
-describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezone-correct)', () => {
-  const seedCompany = async (overrides: Partial<{ timezone: string }> = {}) =>
+describe('runDailyOvertimeSweep', () => {
+  const seedCompany = async () =>
     User.create({
       name: 'Overtime Co',
       email: `overtime-co-${Date.now()}-${Math.random()}@example.com`,
@@ -140,7 +139,6 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       role: USER_ROLES.COMPANY,
       status: USER_STATUS.ACTIVE,
       verified: true,
-      ...overrides,
     })
 
   const seedEmployee = async (companyId: string, name = 'Hardworking Employee') =>
@@ -154,314 +152,114 @@ describe('runDailyOvertimeSweep (Phase 3 checker, Phase 6: per-company + timezon
       verified: true,
     })
 
-  const seedPlan = async (companyId: string, employeeId: Types.ObjectId, date: string, hours: number) => {
-    const project = await Project.create({ title: 'Planned', company: companyId })
-    await DailyAllocation.create({
-      company: companyId,
-      employee: employeeId,
-      project: project._id,
-      date,
-      hours,
-    })
-  }
+  const hour = 60 * 60 * 1000
 
-  it('notifies both the employee and their company when worked time is past the plan', async () => {
+  const seedProject = async (
+    companyId: string,
+    employeeId: Types.ObjectId,
+    projectTime: number,
+    title = 'Site',
+  ) =>
+    Project.create({
+      title,
+      company: companyId,
+      employees: [employeeId],
+      projectTime,
+    })
+
+  it('notifies once when committed hours pass the project limit', async () => {
     const company = await seedCompany()
     const employee = await seedEmployee(company._id.toString())
+    const project = await seedProject(company._id.toString(), employee._id, 40, 'Site')
     await TimeSession.create({
       user: employee._id,
+      project: project._id,
       startTime: new Date('2026-01-10T06:00:00.000Z'),
       endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 10 * 60 * 60 * 1000,
+      totalTime: 42 * hour,
       status: 'stopped',
       date: '2026-01-10',
     })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
 
-    const now = new Date('2026-01-11T00:00:00.000Z')
-    const result = await runDailyOvertimeSweep(now, '2026-01-10')
-
+    const result = await runDailyOvertimeSweep()
     expect(result).toEqual({ companiesChecked: 1, notified: 1 })
 
+    const employeeKey = `overtime:${employee._id.toString()}:${project._id.toString()}:40:employee`
     const employeeNotification = await Notification.findOne({
       to: employee._id,
-      idempotencyKey: `overtime:${employee._id.toString()}:2026-01-10:employee`,
+      idempotencyKey: employeeKey,
     })
     expect(employeeNotification?.title).toBe('Overtime alert')
-    expect(employeeNotification?.body).toContain('10.00')
-    expect(employeeNotification?.body).toContain('4.00')
+    expect(employeeNotification?.body).toContain('Site')
+    expect(employeeNotification?.body).toContain('42')
+    expect(employeeNotification?.body).toContain('40')
 
     const companyNotification = await Notification.findOne({
       to: company._id,
-      idempotencyKey: `overtime:${employee._id.toString()}:2026-01-10:company`,
+      idempotencyKey: `overtime:${employee._id.toString()}:${project._id.toString()}:40:company`,
     })
     expect(companyNotification?.body).toContain(employee.name)
+    expect(companyNotification?.body).toContain('Site')
 
-    await runDailyOvertimeSweep(now, '2026-01-10')
+    await runDailyOvertimeSweep()
     expect(await Notification.countDocuments({ to: employee._id })).toBe(1)
     expect(await Notification.countDocuments({ to: company._id })).toBe(1)
   })
 
-  it('does not notify when there is no plan for the day', async () => {
+  it('sends nothing when the project has no limit', async () => {
     const company = await seedCompany()
-    const employee = await seedEmployee(company._id.toString(), 'Unplanned Employee')
+    const employee = await seedEmployee(company._id.toString())
+    const project = await seedProject(company._id.toString(), employee._id, 0)
     await TimeSession.create({
       user: employee._id,
+      project: project._id,
       startTime: new Date('2026-01-10T06:00:00.000Z'),
       endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 10 * 60 * 60 * 1000,
+      totalTime: 10 * hour,
       status: 'stopped',
       date: '2026-01-10',
     })
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
+    const result = await runDailyOvertimeSweep()
     expect(result).toEqual({ companiesChecked: 1, notified: 0 })
     expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
   })
 
-  it('does not notify when worked time is within the plan', async () => {
+  it('sends nothing when worked hours are under the project limit', async () => {
     const company = await seedCompany()
-    const employee = await seedEmployee(company._id.toString(), 'Normal Hours Employee')
+    const employee = await seedEmployee(company._id.toString())
+    const project = await seedProject(company._id.toString(), employee._id, 40)
     await TimeSession.create({
       user: employee._id,
+      project: project._id,
       startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T12:00:00.000Z'),
-      totalTime: 6 * 60 * 60 * 1000,
+      endTime: new Date('2026-01-10T16:00:00.000Z'),
+      totalTime: 10 * hour,
       status: 'stopped',
       date: '2026-01-10',
     })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 8)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
+    const result = await runDailyOvertimeSweep()
     expect(result).toEqual({ companiesChecked: 1, notified: 0 })
     expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
   })
 
-  it('counts only the part of a session that falls on the planned day', async () => {
+  it('sends nothing when committed hours equal the project limit', async () => {
     const company = await seedCompany()
-    const employee = await seedEmployee(company._id.toString(), 'Midnight Employee')
+    const employee = await seedEmployee(company._id.toString())
+    const project = await seedProject(company._id.toString(), employee._id, 40)
     await TimeSession.create({
       user: employee._id,
-      startTime: new Date('2026-01-09T22:00:00.000Z'),
-      endTime: new Date('2026-01-10T02:00:00.000Z'),
-      totalTime: 4 * 60 * 60 * 1000,
+      project: project._id,
+      startTime: new Date('2026-01-10T06:00:00.000Z'),
+      endTime: new Date('2026-01-10T16:00:00.000Z'),
+      totalTime: 40 * hour,
       status: 'stopped',
-      date: '2026-01-09',
+      date: '2026-01-10',
     })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 3)
 
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
+    const result = await runDailyOvertimeSweep()
     expect(result).toEqual({ companiesChecked: 1, notified: 0 })
     expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
-  })
-
-  it('sums multiple sessions for the same user/day when checking the threshold', async () => {
-    const company = await seedCompany()
-    const employee = await seedEmployee(company._id.toString(), 'Multi Session Employee')
-    await TimeSession.create([
-      {
-        user: employee._id,
-        startTime: new Date('2026-01-10T06:00:00.000Z'),
-        endTime: new Date('2026-01-10T10:00:00.000Z'),
-        totalTime: 4 * 60 * 60 * 1000,
-        status: 'stopped',
-        date: '2026-01-10',
-      },
-      {
-        user: employee._id,
-        startTime: new Date('2026-01-10T11:00:00.000Z'),
-        endTime: new Date('2026-01-10T16:00:00.000Z'),
-        totalTime: 5 * 60 * 60 * 1000,
-        status: 'stopped',
-        date: '2026-01-10',
-      },
-    ])
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 8)
-
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
-    // 4h + 5h = 9h, past an 8h plan, even though neither session alone is
-    expect(result).toEqual({ companiesChecked: 1, notified: 1 })
-  })
-
-  it('does not re-notify for the same user/day on a second sweep', async () => {
-    const company = await seedCompany()
-    const employee = await seedEmployee(company._id.toString(), 'Repeat Sweep Employee')
-    await TimeSession.create({
-      user: employee._id,
-      startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 10 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10',
-    })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
-
-    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-    await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
-    expect(await Notification.countDocuments({ to: employee._id })).toBe(1)
-  })
-
-  it('does not check an employee who does not belong to any registered company', async () => {
-    // The sweep iterates per registered COMPANY (needed to resolve each
-    // company's timezone) and looks up that company's employees — an
-    // employee with no company is structurally unreachable by any
-    // company's iteration. A real signup always sets `company` (see
-    // custom.auth.service.ts's createUser), so this is a defensive check
-    // against an anomalous data state, not an expected one.
-    const employee = await User.create({
-      name: 'No Company Employee',
-      email: `no-company-${Date.now()}@example.com`,
-      password: 'Password123!',
-      role: USER_ROLES.EMPLOYEES,
-      status: USER_STATUS.ACTIVE,
-      verified: true,
-    })
-    await TimeSession.create({
-      user: employee._id,
-      startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10',
-    })
-
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
-    expect(result).toEqual({ companiesChecked: 0, notified: 0 })
-    expect(await Notification.countDocuments({ to: employee._id })).toBe(0)
-  })
-
-  it('does not throw when there are no registered companies at all', async () => {
-    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')).resolves.toEqual({
-      companiesChecked: 0,
-      notified: 0,
-    })
-  })
-
-  it('does not throw for a company with employees but zero matching sessions', async () => {
-    const company = await seedCompany()
-    await seedEmployee(company._id.toString(), 'Idle Employee')
-    // A TimeSession for a random, unrelated user — never matches this
-    // company's employee list, so it must not affect the result at all.
-    await TimeSession.create({
-      user: new Types.ObjectId(),
-      startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10',
-    })
-
-    await expect(runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')).resolves.toEqual({
-      companiesChecked: 1,
-      notified: 0,
-    })
-  })
-
-  it('attributes a session to the company\'s correct LOCAL calendar day, not the UTC day (timezone correctness)', async () => {
-    // Pacific/Kiritimati is UTC+14 with no DST — a deterministic, simple
-    // fixed offset ideal for this test. Local midnight 2026-01-11 00:00 is
-    // UTC 2026-01-10T10:00:00Z.
-    const company = await seedCompany({ timezone: 'Pacific/Kiritimati' })
-    const employee = await seedEmployee(company._id.toString(), 'Kiritimati Employee')
-    // UTC 2026-01-10T12:00 = local (UTC+14) 2026-01-11T02:00 — this
-    // session happened on the company's local Jan 11th, even though its
-    // raw UTC instant falls on Jan 10th.
-    await TimeSession.create({
-      user: employee._id,
-      startTime: new Date('2026-01-10T12:00:00.000Z'),
-      endTime: new Date('2026-01-10T21:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10', // the UTC-anchored date string — deliberately "wrong" for this company
-    })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-11', 4)
-
-    const resultForLocalJan11 = await runDailyOvertimeSweep(new Date(), '2026-01-11')
-    expect(resultForLocalJan11.notified).toBe(1)
-    expect(
-      await Notification.findOne({
-        to: employee._id,
-        idempotencyKey: `overtime:${employee._id.toString()}:2026-01-11:employee`,
-      }),
-    ).not.toBeNull()
-
-    // Checking the company's local Jan 10th (a different sweep run, distinct
-    // idempotency key) must NOT pick up this session — it didn't happen on
-    // their local Jan 10th, regardless of what the raw `date` field says.
-    const resultForLocalJan10 = await runDailyOvertimeSweep(new Date(), '2026-01-10')
-    expect(resultForLocalJan10.notified).toBe(0)
-  })
-
-  it('isolates one company\'s failure — an invalid stored timezone does not abort the sweep for other companies', async () => {
-    // Bypasses the write-time IANA validation (isValidTimezone in
-    // timezoneHelper.ts, wired into the profile-update endpoint) to
-    // simulate data that's bad despite that guard — a migration artifact,
-    // a manual DB edit, etc.
-    const badCompany = await User.create({
-      name: 'Bad Timezone Co',
-      email: `bad-timezone-co-${Date.now()}@example.com`,
-      password: 'Password123!',
-      role: USER_ROLES.COMPANY,
-      status: USER_STATUS.ACTIVE,
-      verified: true,
-      timezone: 'Not/A_Real_Zone',
-    })
-    await seedEmployee(badCompany._id.toString(), 'Unlucky Employee')
-
-    const goodCompany = await seedCompany({ timezone: 'UTC' })
-    const goodEmployee = await seedEmployee(goodCompany._id.toString(), 'Lucky Employee')
-    await TimeSession.create({
-      user: goodEmployee._id,
-      startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10',
-    })
-    await seedPlan(goodCompany._id.toString(), goodEmployee._id, '2026-01-10', 4)
-
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T00:00:00.000Z'), '2026-01-10')
-
-    // Both companies were iterated (companiesChecked counts registered
-    // companies, not successes) — but only the good one actually notified.
-    expect(result.companiesChecked).toBe(2)
-    expect(result.notified).toBe(1)
-    expect(
-      await Notification.findOne({
-        to: goodEmployee._id,
-        idempotencyKey: `overtime:${goodEmployee._id.toString()}:2026-01-10:employee`,
-      }),
-    ).not.toBeNull()
-  })
-
-  it('defaults to checking each company\'s most recently completed local day when no targetDateKey is given', async () => {
-    const company = await seedCompany({ timezone: 'UTC' })
-    const employee = await seedEmployee(company._id.toString(), 'Default Date Employee')
-    await TimeSession.create({
-      user: employee._id,
-      startTime: new Date('2026-01-10T06:00:00.000Z'),
-      endTime: new Date('2026-01-10T16:00:00.000Z'),
-      totalTime: 9 * 60 * 60 * 1000,
-      status: 'stopped',
-      date: '2026-01-10',
-    })
-    await seedPlan(company._id.toString(), employee._id, '2026-01-10', 4)
-
-    // "Now" is early on 2026-01-11 UTC — for a UTC company, "yesterday" is 2026-01-10.
-    const result = await runDailyOvertimeSweep(new Date('2026-01-11T03:00:00.000Z'))
-
-    expect(result.notified).toBe(1)
-    expect(
-      await Notification.findOne({
-        to: employee._id,
-        idempotencyKey: `overtime:${employee._id.toString()}:2026-01-10:employee`,
-      }),
-    ).not.toBeNull()
   })
 })

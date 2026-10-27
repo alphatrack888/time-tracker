@@ -56,17 +56,15 @@ class TimeTrackerCronService {
         logger.info('Forgot-clock-out sweep cron job scheduled (every hour)')
     }
 
-    // Checks every company's most recently completed *local* day for
-    // overtime — every 4 hours so each company's day gets checked
-    // reasonably soon after their local midnight regardless of timezone,
-    // without a per-company schedule. Safe to re-run: idempotency is keyed
-    // per (employee, local date).
+    // Checks each assigned person's committed hours against the project
+    // limit. Every 4 hours. Safe to re-run: idempotency is keyed per
+    // (employee, project, limit).
     private startDailyOvertimeSweep(): void {
         const job = cron.createTask('0 */4 * * *', async () => {
             try {
-                logger.info('Running daily overtime sweep...')
+                logger.info('Running project overtime sweep...')
                 const result = await runDailyOvertimeSweep()
-                logger.info(`Daily overtime sweep complete: companiesChecked=${result.companiesChecked} notified=${result.notified}`)
+                logger.info(`Project overtime sweep complete: companiesChecked=${result.companiesChecked} notified=${result.notified}`)
             } catch (error) {
                 logger.error('Error in daily overtime sweep cron:', error)
             }
