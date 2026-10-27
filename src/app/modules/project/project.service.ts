@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { IPackageFilterables, IProject } from './project.interface';
 import { Project } from './project.model';
+import { TimeSession } from '../timetracker/timetracker.model';
 import { DailyAllocation } from './dailyAllocation.model';
 import { User } from '../user/user.model';
 import { JwtPayload } from 'jsonwebtoken';
@@ -153,6 +154,33 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
       .sort({[sortBy]: sortOrder}).lean(),
     Project.countDocuments(whereConditions),
   ])
+  const data = result.map(row => presentProject(row, now) as IProject & { workedHours?: number })
+  if (user.role === USER_ROLES.EMPLOYEES && data.length > 0) {
+    const pageIds = data.map(project => project._id)
+    const totals = await TimeSession.aggregate<{ _id: Types.ObjectId; workedMs: number }>([
+      {
+        $match: {
+          user: new Types.ObjectId(user.authId),
+          project: { $in: pageIds },
+        },
+      },
+      {
+        $group: {
+          _id: '$project',
+          workedMs: { $sum: { $ifNull: ['$totalTime', 0] } },
+        },
+      },
+    ])
+    const hoursByProject = new Map(
+      totals.map(row => [
+        row._id.toString(),
+        Math.round((row.workedMs / (1000 * 60 * 60)) * 100) / 100,
+      ]),
+    )
+    for (const project of data) {
+      project.workedHours = hoursByProject.get(String(project._id)) ?? 0
+    }
+  }
   return {
     meta: {
       page,
@@ -160,7 +188,7 @@ const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: result.map(row => presentProject(row, now)),
+    data,
   };
 };
 
