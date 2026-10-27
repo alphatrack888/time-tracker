@@ -3,6 +3,7 @@ import ApiError from '../../../errors/ApiError';
 import { IPackageFilterables, IProject } from './project.interface';
 import { Project } from './project.model';
 import { DailyAllocation } from './dailyAllocation.model';
+import { User } from '../user/user.model';
 import { JwtPayload } from 'jsonwebtoken';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
@@ -38,21 +39,39 @@ const presentProject = <T>(project: T, now: Date = new Date()): T => {
 }
 
 
+const assignedEmployeeIds = async (companyId: string, employees?: IProject['employees']) => {
+  const ids = [...new Set((employees || []).map((id) => id.toString()))]
+  if (ids.some((id) => !Types.ObjectId.isValid(id))) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Each assigned person must be an employee of this company')
+  }
+  if (ids.length === 0) return ids
+
+  const found = await User.find({
+    _id: { $in: ids },
+    company: companyId,
+    role: USER_ROLES.EMPLOYEES,
+  }).select('_id')
+  if (found.length !== ids.length) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Each assigned person must be an employee of this company')
+  }
+  return ids
+}
+
 const createProject = async (user: JwtPayload, payload: IProject) => {
   payload.company = user.authId;
-  
-  // Convert string dates to Date objects and calculate duration
+
   const startDate = new Date(payload.startDate);
   const endDate = new Date(payload.endDate);
-  if(startDate > endDate){
+  if (startDate > endDate) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'End date must be after start date',
+      'End date must not be before the start date',
     );
   }
-  payload.duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 );
-  payload.projectTime = payload.projectTime || (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 );
-  
+  payload.duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+  const employeeIds = await assignedEmployeeIds(user.authId, payload.employees)
+  payload.employees = employeeIds as unknown as IProject['employees']
+
   const result = await Project.create(payload);
   if (!result)
     throw new ApiError(
@@ -60,7 +79,23 @@ const createProject = async (user: JwtPayload, payload: IProject) => {
       'Failed to create Project, please try again with valid data.',
     );
 
-  return presentProject(result);
+  const presented = presentProject(result)
+  employeeIds.forEach((employeeId) => {
+    emitEvent(`newProject::${employeeId}`, presented)
+    dispatchNotification({
+      from: user.authId,
+      to: employeeId,
+      kind: 'projectEmployeeAdded',
+      data: {
+        projectTitle: result.title,
+        startDate: result.startDate?.toDateString(),
+        endDate: result.endDate?.toDateString(),
+      },
+      idempotencyKey: `project:${result._id.toString()}:employee:${employeeId}:added:${(result.createdAt ?? new Date()).toISOString()}`,
+    })
+  })
+
+  return presented
 };
 
 const getAllProjects = async (user: JwtPayload, filterables: IPackageFilterables, pagination: IPaginationOptions) => {
