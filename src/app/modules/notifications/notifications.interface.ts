@@ -24,6 +24,13 @@ export type INotification = {
   category?: string
 
   /**
+   * Set only for project-added and overtime alerts, where the employee can
+   * still load the project. Absent for removal (the employee is no longer
+   * assigned) and for every other kind. Old rows omit it.
+   */
+  projectId?: string
+
+  /**
    * Caller-supplied key identifying the triggering business event (e.g.
    * `leaveRequest:<id>:submitted`). Unique+sparse indexed: a second create
    * with the same key is a no-op (caught as a duplicate-key error), making

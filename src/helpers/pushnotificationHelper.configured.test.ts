@@ -13,14 +13,25 @@
 export {}
 
 const sendEachForMulticast = jest.fn()
+const loggerInfo = jest.fn()
 
 let sendPushNotification: typeof import('./pushnotificationHelper').sendPushNotification
 let isFirebasePushConfigured: typeof import('./pushnotificationHelper').isFirebasePushConfigured
+let androidNotificationChannelId: typeof import('./pushnotificationHelper').ANDROID_NOTIFICATION_CHANNEL_ID
+let firebaseInitLog = ''
 
 beforeAll(() => {
   process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 = Buffer.from(
-    JSON.stringify({ type: 'service_account', project_id: 'test-project' }),
+    JSON.stringify({
+      type: 'service_account',
+      project_id: 'test-project',
+      private_key: 'super-secret-key',
+    }),
   ).toString('base64')
+
+  jest.doMock('../shared/logger', () => ({
+    logger: { info: loggerInfo, warn: jest.fn(), error: jest.fn() },
+  }))
 
   jest.doMock('firebase-admin', () => ({
     initializeApp: jest.fn(),
@@ -32,6 +43,8 @@ beforeAll(() => {
   const helper = require('./pushnotificationHelper')
   sendPushNotification = helper.sendPushNotification
   isFirebasePushConfigured = helper.isFirebasePushConfigured
+  androidNotificationChannelId = helper.ANDROID_NOTIFICATION_CHANNEL_ID
+  firebaseInitLog = loggerInfo.mock.calls.map(call => call.map(String).join(' ')).join('\n')
 })
 
 beforeEach(() => {
@@ -43,19 +56,25 @@ describe('sendPushNotification when Firebase is configured (Phase 2: multicast +
     expect(isFirebasePushConfigured()).toBe(true)
   })
 
+  it('logs the Firebase project id and nothing else from the service account', () => {
+    expect(firebaseInitLog).toContain('project_id=test-project')
+    expect(firebaseInitLog).not.toContain('super-secret-key')
+  })
+
   it('sends one message per token via a single multicast call, reporting per-token results', async () => {
     sendEachForMulticast.mockResolvedValueOnce({
       successCount: 1,
-      failureCount: 2,
+      failureCount: 3,
       responses: [
         { success: true },
         { success: false, error: { code: 'messaging/registration-token-not-registered' } },
         { success: false, error: { code: 'messaging/internal-error' } },
+        { success: false, error: { code: 'messaging/invalid-argument' } },
       ],
     })
 
     const results = await sendPushNotification(
-      ['token-good', 'token-dead', 'token-transient-fail'],
+      ['token-good', 'token-dead', 'token-transient-fail', 'token-bad-payload'],
       'Title',
       'Body',
       { from: 'a', to: 'b' },
@@ -63,7 +82,14 @@ describe('sendPushNotification when Firebase is configured (Phase 2: multicast +
 
     expect(sendEachForMulticast).toHaveBeenCalledTimes(1)
     const sentMessage = sendEachForMulticast.mock.calls[0][0]
-    expect(sentMessage.tokens).toEqual(['token-good', 'token-dead', 'token-transient-fail'])
+    expect(sentMessage.tokens).toEqual([
+      'token-good',
+      'token-dead',
+      'token-transient-fail',
+      'token-bad-payload',
+    ])
+    expect(sentMessage.android.notification.channelId).toBe(androidNotificationChannelId)
+    expect(sentMessage.android.notification.icon).toBeUndefined()
 
     expect(results).toEqual([
       { token: 'token-good', success: true },
@@ -77,6 +103,12 @@ describe('sendPushNotification when Firebase is configured (Phase 2: multicast +
         token: 'token-transient-fail',
         success: false,
         errorCode: 'messaging/internal-error',
+        isTokenInvalid: false,
+      },
+      {
+        token: 'token-bad-payload',
+        success: false,
+        errorCode: 'messaging/invalid-argument',
         isTokenInvalid: false,
       },
     ])

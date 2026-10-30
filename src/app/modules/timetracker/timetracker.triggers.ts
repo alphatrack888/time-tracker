@@ -128,7 +128,7 @@ const runProjectOvertimeSweepForCompany = async (
       from: userId,
       to: userId,
       kind: 'overtimeEmployeeAlert',
-      data: { projectTitle, hoursWorked, allocatedHours },
+      data: { projectTitle, projectId, hoursWorked, allocatedHours },
       idempotencyKey: `overtime:${userId}:${projectId}:${limit}:employee`,
     });
     notified += 1;
@@ -137,7 +137,7 @@ const runProjectOvertimeSweepForCompany = async (
       from: userId,
       to: companyId,
       kind: 'overtimeCompanyAlert',
-      data: { employeeName, projectTitle, hoursWorked, allocatedHours },
+      data: { employeeName, projectTitle, projectId, hoursWorked, allocatedHours },
       idempotencyKey: `overtime:${userId}:${projectId}:${limit}:company`,
     });
   }

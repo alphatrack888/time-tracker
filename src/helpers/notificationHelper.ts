@@ -55,6 +55,23 @@ type LiteralPayload = BasePayload & {
 
 export type SendNotificationPayload = TemplatedPayload | LiteralPayload
 
+// An employee removed from a project can no longer load it, so that kind
+// is intentionally absent. The company overtime alert is included so its
+// payload matches the employee alert.
+const PROJECT_LINK_KINDS = new Set<NotificationKind>([
+  'projectEmployeeAdded',
+  'overtimeEmployeeAlert',
+  'overtimeCompanyAlert',
+])
+
+const projectIdFromPayload = (payload: SendNotificationPayload): string | undefined => {
+  if (!payload.kind || !PROJECT_LINK_KINDS.has(payload.kind)) return undefined
+  const raw = payload.data?.projectId
+  if (typeof raw !== 'string') return undefined
+  const projectId = raw.trim()
+  return projectId.length > 0 ? projectId : undefined
+}
+
 const resolveContent = async (payload: SendNotificationPayload): Promise<{ title: string; body: string; translations: NotificationTranslations | { english: { title: string; body: string } }; category?: NotificationCategory }> => {
   if (payload.kind) {
     const category = KIND_CATEGORY[payload.kind]
@@ -111,6 +128,8 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
     return
   }
 
+  const projectId = projectIdFromPayload(payload)
+
   let created
   try {
     created = await Notification.create({
@@ -121,6 +140,7 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
       translations,
       isRead: false,
       ...(category && { category }),
+      ...(projectId && { projectId }),
       ...(idempotencyKey && { idempotencyKey }),
     })
   } catch (err: unknown) {
@@ -183,6 +203,7 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
       notificationId: created._id.toString(),
       ...(category && { category }),
       ...(payload.kind && { kind: payload.kind }),
+      ...(created.projectId && { projectId: created.projectId }),
     })
     const succeeded = results.filter(r => r.success).length
     const failed = results.length - succeeded

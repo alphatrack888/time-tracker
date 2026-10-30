@@ -2,6 +2,14 @@ import admin from "firebase-admin";
 import config from "../config";
 import { logger } from "../shared/logger";
 
+/** The service-account project id, and nothing else from that JSON. */
+export const firebaseProjectId = (serviceAccount: unknown): string => {
+  if (!serviceAccount || typeof serviceAccount !== "object") return "";
+  const projectId = (serviceAccount as { project_id?: unknown }).project_id;
+  if (typeof projectId !== "string") return "";
+  return projectId.trim();
+};
+
 let firebaseInitialized = false;
 
 try {
@@ -16,7 +24,12 @@ try {
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
     firebaseInitialized = true;
-    logger.info("Firebase Admin initialized successfully");
+    const projectId = firebaseProjectId(serviceAccount);
+    logger.info(
+      projectId
+        ? `Firebase Admin initialized project_id=${projectId}`
+        : "Firebase Admin initialized project_id=absent",
+    );
   } else {
     logger.warn("Firebase Service Account Base64 is missing in configuration");
   }
@@ -41,6 +54,11 @@ export type PushSendResult = {
 // FCM's own multicast call accepts at most 500 tokens.
 const FCM_MULTICAST_LIMIT = 500;
 
+// Must match AlphaTrackApplication.CHANNEL_ID and the AndroidManifest
+// default_notification_channel_id. A missing or different id makes Android 8+
+// post the banner on Firebase's fallback channel.
+export const ANDROID_NOTIFICATION_CHANNEL_ID = "alpha_track_default_channel";
+
 // FCM's total notification payload cap is ~4KB; keep the body well under
 // that so a long, user-authored string (e.g. a leave request reason) can
 // never blow up the send. The full, untruncated text still lives in the
@@ -55,10 +73,11 @@ export const truncateForPush = (body: string): string => {
 
 // FCM error codes that mean "this token is dead, stop sending to it" as
 // opposed to a transient failure worth leaving alone.
+// invalid-argument means the message was rejected. It is not in Firebase's
+// token-cleanup list, so a payload bug must not unregister every device.
 const INVALID_TOKEN_ERROR_CODES = new Set([
   "messaging/registration-token-not-registered",
   "messaging/invalid-registration-token",
-  "messaging/invalid-argument",
 ]);
 
 const chunk = <T,>(items: T[], size: number): T[][] => {
@@ -94,11 +113,10 @@ export const sendPushNotification = async (
   const safeBody = truncateForPush(body);
   const results: PushSendResult[] = [];
 
-  // Groups related pushes into one collapsible thread in iOS's Notification
-  // Center (Apple's `thread-id`) instead of a flood of separate banners
-  // when several arrive close together (e.g. multiple leave requests) —
-  // Android gets the equivalent behavior from the single default
-  // notification channel configured client-side (AndroidManifest.xml).
+  // iOS groups related pushes into one thread in Notification Center
+  // (Apple's thread-id). A channel does not do that on Android: each
+  // event stays its own banner. channelId only selects the app channel
+  // created in AlphaTrackApplication.
   const threadId = data.category || 'general';
 
   for (const batch of chunk(tokens, FCM_MULTICAST_LIMIT)) {
@@ -106,9 +124,12 @@ export const sendPushNotification = async (
       tokens: batch,
       notification: { title, body: safeBody },
       data,
-      ...(icon && {
-        android: { notification: { icon } },
-      }),
+      android: {
+        notification: {
+          channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
+          ...(icon ? { icon } : {}),
+        },
+      },
       apns: {
         payload: {
           aps: { "mutable-content": 1, threadId },

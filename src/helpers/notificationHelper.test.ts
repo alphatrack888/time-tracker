@@ -102,6 +102,47 @@ describe('sendNotification orchestration (Phase 2: DB row + socket + push fan-ou
     expect(dataArg.notificationId).toBe(stored?._id.toString())
     expect(dataArg.category).toBe('leave')
     expect(dataArg.kind).toBe('leaveRequestSubmitted')
+    expect(dataArg.projectId).toBeUndefined()
+    expect(stored?.projectId).toBeUndefined()
+  })
+
+  it('stores projectId and sends it on the push for a project-added notification', async () => {
+    const from = new Types.ObjectId().toString()
+    const to = new Types.ObjectId()
+    const projectId = new Types.ObjectId().toString()
+    await DeviceToken.create({ user: to, token: 'device-1', platform: 'android' })
+    mockedSendPush.mockResolvedValueOnce([{ token: 'device-1', success: true }])
+
+    await sendNotification({
+      from,
+      to: to.toString(),
+      kind: 'projectEmployeeAdded',
+      data: { projectTitle: 'Site A', projectId },
+    })
+
+    const stored = await Notification.findOne({ to, from })
+    const [, , , dataArg] = mockedSendPush.mock.calls[0]
+    expect(stored?.projectId).toBe(projectId)
+    expect(dataArg.projectId).toBe(projectId)
+  })
+
+  it('does not store or send projectId for a removal, even if the caller passes one', async () => {
+    const from = new Types.ObjectId().toString()
+    const to = new Types.ObjectId()
+    await DeviceToken.create({ user: to, token: 'device-1', platform: 'android' })
+    mockedSendPush.mockResolvedValueOnce([{ token: 'device-1', success: true }])
+
+    await sendNotification({
+      from,
+      to: to.toString(),
+      kind: 'projectEmployeeRemoved',
+      data: { projectTitle: 'Site A', projectId: new Types.ObjectId().toString() },
+    })
+
+    const stored = await Notification.findOne({ to, from })
+    const [, , , dataArg] = mockedSendPush.mock.calls[0]
+    expect(stored?.projectId).toBeUndefined()
+    expect(dataArg.projectId).toBeUndefined()
   })
 
   it('still carries notificationId (but no category/kind) for a literal send with no category', async () => {

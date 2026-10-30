@@ -96,6 +96,7 @@ const createProject = async (user: JwtPayload, payload: IProject) => {
       kind: 'projectEmployeeAdded',
       data: {
         projectTitle: result.title,
+        projectId: result._id.toString(),
         startDate: result.startDate?.toDateString(),
         endDate: result.endDate?.toDateString(),
       },
@@ -375,6 +376,7 @@ const updateProject = async (
         kind: 'projectEmployeeAdded' as const,
         data: {
           projectTitle: result.title,
+          projectId: result._id.toString(),
           startDate: result.startDate?.toDateString(),
           endDate: result.endDate?.toDateString(),
         },

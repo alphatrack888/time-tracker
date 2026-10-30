@@ -25,6 +25,7 @@ const notificationSchema = new Schema<INotification, NotificationModel>(
     },
     isRead: { type: Boolean },
     category: { type: String },
+    projectId: { type: String },
     idempotencyKey: { type: String, unique: true, sparse: true },
     createdAt: { type: Date },
     updatedAt: { type: Date },
